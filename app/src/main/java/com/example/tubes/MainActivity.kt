@@ -13,6 +13,7 @@ import androidx.navigation.navArgument
 import com.example.tubes.ui.screens.HomeScreen
 import com.example.tubes.ui.screens.LoginScreen
 import com.example.tubes.ui.screens.RegisterScreen
+import com.example.tubes.ui.screens.SplashScreen
 import com.example.tubes.ui.screens.TimerScreen
 import com.example.tubes.ui.theme.TUBESTheme
 import com.google.firebase.auth.FirebaseAuth
@@ -32,20 +33,31 @@ class MainActivity : ComponentActivity() {
 }
 
 /**
- * Main app composable dengan Navigation setup dan Auth state check
+ * Main app composable dengan Navigation setup dan Splash Screen
  */
 @Composable
 fun TaskManagerApp() {
     val navController = rememberNavController()
-    
-    // Pengecekan auth state untuk menentukan start destination
-    val currentUser = FirebaseAuth.getInstance().currentUser
-    val startDestination = if (currentUser != null) "home" else "login"
 
     NavHost(
         navController = navController,
-        startDestination = startDestination
+        startDestination = "splash"
     ) {
+        // Splash Screen - Always start here
+        composable("splash") {
+            SplashScreen(
+                onNavigateToNext = {
+                    // Check auth state after splash
+                    val currentUser = FirebaseAuth.getInstance().currentUser
+                    val destination = if (currentUser != null) "home" else "login"
+                    
+                    navController.navigate(destination) {
+                        popUpTo("splash") { inclusive = true }
+                    }
+                }
+            )
+        }
+
         // Route untuk LoginScreen
         composable("login") {
             LoginScreen(

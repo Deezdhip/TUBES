@@ -74,4 +74,10 @@ class UserRepository {
             throw e
         }
     }
+    /**
+     * Update user name specifically.
+     */
+    suspend fun updateUserName(uid: String, name: String) {
+        updateUserProfile(uid, mapOf("name" to name))
+    }
 }

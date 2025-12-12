@@ -13,7 +13,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+
 import kotlinx.coroutines.delay
+
 
 /**
  * Enum untuk state timer
@@ -39,8 +41,21 @@ fun TimerScreen(
 ) {
     // State untuk timer
     var timerState by remember { mutableStateOf(TimerState.IDLE) }
-    var timeLeftInSeconds by remember { mutableIntStateOf(initialTimeInMinutes * 60) }
-    val totalTimeInSeconds = remember { initialTimeInMinutes * 60 }
+    // Store duration in SECONDS now
+    var selectedDurationInSeconds by remember { mutableIntStateOf(initialTimeInMinutes * 60) }
+    var timeLeftInSeconds by remember { mutableIntStateOf(selectedDurationInSeconds) }
+    var totalTimeInSeconds by remember { mutableIntStateOf(selectedDurationInSeconds) }
+    
+    // Dialog state
+    var showCustomDialog by remember { mutableStateOf(false) }
+
+    // Update timer when duration changes (only if IDLE)
+    LaunchedEffect(selectedDurationInSeconds) {
+        if (timerState == TimerState.IDLE) {
+            totalTimeInSeconds = selectedDurationInSeconds
+            timeLeftInSeconds = totalTimeInSeconds
+        }
+    }
 
     // Hitung progress (1.0 = penuh, 0.0 = habis)
     val progress by animateFloatAsState(
@@ -63,7 +78,7 @@ fun TimerScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Pomodoro Timer") },
+                title = { Text("Task Timer") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -73,8 +88,8 @@ fun TimerScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
         }
@@ -104,6 +119,21 @@ fun TimerScreen(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
                 )
+            }
+            
+            // Duration Selection
+            if (timerState == TimerState.IDLE) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    OutlinedButton(
+                        onClick = { showCustomDialog = true },
+                        modifier = Modifier.padding(top = 16.dp)
+                    ) {
+                        Text("Set Custom Duration")
+                    }
+                }
+            } else {
+                 // Spacing placeholder to keep layout stable
+                 Spacer(modifier = Modifier.height(50.dp))
             }
 
             // Circular Progress Indicator dengan Timer
@@ -160,7 +190,7 @@ fun TimerScreen(
                         .weight(1f)
                         .height(56.dp),
                     colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                        containerColor = MaterialTheme.colorScheme.primary
                     )
                 ) {
                     if (timerState != TimerState.RUNNING) {
@@ -198,6 +228,57 @@ fun TimerScreen(
                 }
             }
         }
+    }
+    
+    // Custom Duration Dialog
+    if (showCustomDialog) {
+        var customMinutes by remember { mutableStateOf("") }
+        var customSeconds by remember { mutableStateOf("") }
+        
+        AlertDialog(
+            onDismissRequest = { showCustomDialog = false },
+            title = { Text("Set Custom Time") },
+            text = {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    OutlinedTextField(
+                        value = customMinutes,
+                        onValueChange = { if (it.all { char -> char.isDigit() }) customMinutes = it },
+                        label = { Text("Min") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = customSeconds,
+                        onValueChange = { if (it.all { char -> char.isDigit() }) customSeconds = it },
+                        label = { Text("Sec") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val mins = customMinutes.toIntOrNull() ?: 0
+                    val secs = customSeconds.toIntOrNull() ?: 0
+                    val totalSecs = (mins * 60) + secs
+                    
+                    if (totalSecs > 0) {
+                        selectedDurationInSeconds = totalSecs
+                    }
+                    showCustomDialog = false
+                }) {
+                    Text("Set")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCustomDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 

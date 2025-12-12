@@ -15,6 +15,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.tubes.ui.components.TaskItem
 import com.example.tubes.viewmodel.TaskUiState
 import com.example.tubes.viewmodel.TaskViewModel
+import com.example.tubes.ui.components.AddTaskDialog
 
 /**
  * Screen utama untuk menampilkan daftar task.
@@ -125,55 +126,16 @@ fun TaskListScreen(
         }
     }
 
+
+
     // Dialog untuk menambah task baru
     if (showDialog) {
         AddTaskDialog(
             onDismiss = { showDialog = false },
-            onConfirm = { title ->
+            onAdd = { title ->
                 viewModel.addTask(title)
                 showDialog = false
             }
         )
     }
-}
-
-/**
- * Dialog untuk input task baru
- */
-@Composable
-fun AddTaskDialog(
-    onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit
-) {
-    var taskTitle by remember { mutableStateOf("") }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Tambah Tugas Baru") },
-        text = {
-            OutlinedTextField(
-                value = taskTitle,
-                onValueChange = { taskTitle = it },
-                label = { Text("Judul Tugas") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    if (taskTitle.isNotBlank()) {
-                        onConfirm(taskTitle)
-                    }
-                }
-            ) {
-                Text("Tambah")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Batal")
-            }
-        }
-    )
 }
