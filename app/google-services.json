@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "145570191792",
+    "project_id": "focustask-80914",
+    "storage_bucket": "focustask-80914.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:145570191792:android:e48e9b227cb50e60341e75",
+        "android_client_info": {
+          "package_name": "com.example.tubes"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBtmkV8inZZvDSy8mm4dtnS5D3fMHxX5Ws"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
