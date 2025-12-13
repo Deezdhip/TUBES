@@ -72,7 +72,7 @@ class TaskRepository {
      * @param title Judul task yang akan ditambahkan
      * @throws IllegalStateException jika user belum login
      */
-    suspend fun addTask(title: String) {
+    suspend fun addTask(title: String, priority: String, category: String) {
         try {
             val currentUserId = getCurrentUserId()
                 ?: throw IllegalStateException("User belum login")
@@ -81,6 +81,8 @@ class TaskRepository {
                 userId = currentUserId,  // Set userId dari user yang login
                 title = title,
                 isCompleted = false,
+                priority = priority,
+                category = category,
                 timestamp = System.currentTimeMillis()
             )
             tasksCollection.add(task).await()

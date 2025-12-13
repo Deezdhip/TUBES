@@ -79,6 +79,43 @@ fun TaskItem(
                     }
                 )
                 
+                Spacer(modifier = Modifier.height(4.dp))
+                
+                // Priority and Category Chips
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Priority Badge
+                    SuggestionChip(
+                        onClick = { },
+                        label = { Text(task.priority, color = OnBackgroundWhite, fontSize = 10.sp) },
+                        colors = SuggestionChipDefaults.suggestionChipColors(
+                            containerColor = when(task.priority) {
+                                "High" -> WarningOrange.copy(alpha = 0.8f)
+                                "Medium" -> PrimaryBlue.copy(alpha = 0.6f)
+                                else -> SuccessGreen.copy(alpha = 0.6f)
+                            }
+                        ),
+                        border = null,
+                        modifier = Modifier.height(24.dp)
+                    )
+                    
+                    // Category Badge
+                    SuggestionChip(
+                        onClick = { },
+                        label = { Text(task.category, color = OnSurfaceVariant, fontSize = 10.sp) },
+                        colors = SuggestionChipDefaults.suggestionChipColors(
+                            containerColor = SurfaceCard
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(
+                            width = 1.dp,
+                            color = OnSurfaceVariant.copy(alpha = 0.3f)
+                        ),
+                         modifier = Modifier.height(24.dp)
+                    )
+                }
+
                 // Optional: Show completion status
                 if (task.isCompleted) {
                     Spacer(modifier = Modifier.height(4.dp))

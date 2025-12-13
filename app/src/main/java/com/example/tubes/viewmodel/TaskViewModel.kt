@@ -57,7 +57,7 @@ class TaskViewModel : ViewModel() {
      * 
      * @param title Judul task yang akan ditambahkan
      */
-    fun addTask(title: String) {
+    fun addTask(title: String, priority: String, category: String) {
         if (title.isBlank()) {
             _uiState.value = TaskUiState.Error("Judul task tidak boleh kosong")
             return
@@ -65,7 +65,7 @@ class TaskViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                repository.addTask(title)
+                repository.addTask(title, priority, category)
                 // State akan otomatis update via real-time listener
             } catch (e: Exception) {
                 _uiState.value = TaskUiState.Error(

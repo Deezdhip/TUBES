@@ -1,6 +1,8 @@
 package com.example.tubes.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,6 +17,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import com.example.tubes.ui.theme.*
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
@@ -59,16 +63,30 @@ fun RegisterScreen(
     val isLoading = authState is AuthUiState.Loading
     val errorMessage = (authState as? AuthUiState.Error)?.message
 
-    Surface(
-        modifier = modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(BackgroundDark)
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            Column(
+        // Background Decoration
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            drawCircle(
+                color = PrimaryBlue.copy(alpha = 0.15f),
+                radius = 200.dp.toPx(),
+                center = center.copy(x = size.width, y = 0f)
+            )
+            drawCircle(
+                color = PrimaryBlue.copy(alpha = 0.1f),
+                radius = 150.dp.toPx(),
+                center = center.copy(x = 0f, y = size.height)
+            )
+        }
+
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(24.dp),
+                .padding(24.dp)
+                .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -77,17 +95,15 @@ fun RegisterScreen(
             // App Branding
             Text(
                 text = "FocusTask",
-                fontSize = 48.sp,
+                fontSize = 42.sp,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
+                color = PrimaryBlue
             )
+            
+            Spacer(modifier = Modifier.height(8.dp))
 
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // Greeting Text
             Text(
                 text = "Create Account",
-                style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface
             )
@@ -319,4 +335,5 @@ fun RegisterScreen(
         }
         }
     }
-}
+
+

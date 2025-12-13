@@ -14,8 +14,10 @@ data class Task(
     var userId: String = "",
     var title: String = "",
     var isCompleted: Boolean = false,
+    var priority: String = "Medium", // Low, Medium, High
+    var category: String = "Personal", // Work, Study, Personal, Others
     var timestamp: Long = System.currentTimeMillis()
 ) {
     // Empty constructor untuk Firestore
-    constructor() : this("", "", "", false, System.currentTimeMillis())
+    constructor() : this("", "", "", false, "Medium", "Personal", System.currentTimeMillis())
 }

@@ -2,6 +2,7 @@ package com.example.tubes.ui.screens
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
@@ -65,6 +66,20 @@ fun SplashScreen(
             .background(color = BackgroundDark),
         contentAlignment = Alignment.Center
     ) {
+        // Background Decoration
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            drawCircle(
+                color = PrimaryBlue.copy(alpha = 0.15f),
+                radius = 200.dp.toPx(),
+                center = center.copy(x = size.width, y = 0f)
+            )
+            drawCircle(
+                color = PrimaryBlue.copy(alpha = 0.1f),
+                radius = 150.dp.toPx(),
+                center = center.copy(x = 0f, y = size.height)
+            )
+        }
+
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
