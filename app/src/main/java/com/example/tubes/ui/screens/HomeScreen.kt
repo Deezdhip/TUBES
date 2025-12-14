@@ -12,6 +12,8 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Delete
+import kotlinx.coroutines.launch
 // Imports removed/added directly in this block replacement is risky if not careful with lines. 
 // I will target the Dashboard import line first.
 
@@ -55,6 +57,7 @@ import androidx.compose.ui.platform.LocalContext
 @Composable
 fun HomeScreen(
     onNavigateToTimer: (String) -> Unit,
+    onNavigateToRecycleBin: () -> Unit, // New parameter
     onLogout: () -> Unit,
     viewModel: TaskViewModel = viewModel(),
     authViewModel: AuthViewModel = viewModel(),
@@ -64,6 +67,7 @@ fun HomeScreen(
     val authState by authViewModel.authState.collectAsState()
     
     var showDialog by remember { mutableStateOf(false) }
+    var showMenu by remember { mutableStateOf(false) } // State for dropdown menu
     
     val authRepository = remember { AuthRepository() }
     val userEmail = remember { authRepository.getCurrentUserEmail() ?: "User" }
@@ -84,7 +88,41 @@ fun HomeScreen(
     }
 
 
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
     Scaffold(
+        topBar = {
+             CenterAlignedTopAppBar(
+                 title = { Text("Task Manager", fontWeight = FontWeight.Bold) },
+                 actions = {
+                     IconButton(onClick = { showMenu = !showMenu }) {
+                         Icon(Icons.Default.List, contentDescription = "More")
+                     }
+                     DropdownMenu(
+                         expanded = showMenu,
+                         onDismissRequest = { showMenu = false }
+                     ) {
+                         DropdownMenuItem(
+                             text = { Text("Recycle Bin") },
+                             onClick = {
+                                 showMenu = false
+                                 onNavigateToRecycleBin()
+                             },
+                             leadingIcon = {
+                                 Icon(Icons.Default.Delete, contentDescription = null)
+                             }
+                         )
+                     }
+                 },
+                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                     containerColor = BackgroundDark,
+                     titleContentColor = Color.White,
+                     actionIconContentColor = Color.White
+                 )
+             )
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             // Floating Bottom Navigation
             Card(
@@ -166,7 +204,7 @@ fun HomeScreen(
                         is TaskUiState.Success -> {
                             val tasks = state.tasks
                             val inProgressTasks = tasks.count { !it.isCompleted }
-                            val ongoingTasks = tasks.filter { !it.isCompleted }
+                            val visibleTasks = tasks // Show all tasks (repo handles isDeleted)
                             
                             LazyColumn(
                                 modifier = Modifier
@@ -254,7 +292,7 @@ fun HomeScreen(
                                 }
 
                                 // Task List
-                                if (ongoingTasks.isEmpty()) {
+                                if (visibleTasks.isEmpty()) {
                                     item {
                                         Box(
                                             modifier = Modifier
@@ -270,12 +308,37 @@ fun HomeScreen(
                                         }
                                     }
                                 } else {
-                                    items(ongoingTasks) { task ->
+                                    items(
+                                        items = visibleTasks,
+                                        key = { it.id }
+                                    ) { task ->
                                         TaskItem(
                                             task = task,
                                             onClick = { onNavigateToTimer(task.title) },
-                                            onCheckedChange = { viewModel.updateTaskStatus(task.id, it) },
-                                            onDelete = { viewModel.deleteTask(task.id) }
+                                            onCheckedChange = { 
+                                                // Show feedback
+                                                android.widget.Toast.makeText(context, "Updating status...", android.widget.Toast.LENGTH_SHORT).show()
+                                                viewModel.updateTaskStatus(task.id, it) 
+                                            },
+                                            onDelete = { 
+                                                viewModel.deleteTask(task.id) 
+                                                // Show Undo Snackbar
+                                                scope.launch {
+                                                    val result = snackbarHostState.showSnackbar(
+                                                        message = "Tugas dipindahkan ke sampah",
+                                                        actionLabel = "BATAL",
+                                                        duration = SnackbarDuration.Short
+                                                    )
+                                                    if (result == SnackbarResult.ActionPerformed) {
+                                                        viewModel.restoreTask(task)
+                                                    }
+                                                }
+                                            },
+                                            onPinClick = { 
+                                                val msg = if (task.isPinned) "Unpinning..." else "Pinning..."
+                                                android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
+                                                viewModel.togglePin(task) 
+                                            }
                                         )
                                     }
                                 }

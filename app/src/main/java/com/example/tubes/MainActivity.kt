@@ -96,6 +96,9 @@ fun TaskManagerApp() {
                     val encodedTitle = java.net.URLEncoder.encode(taskTitle, StandardCharsets.UTF_8.toString())
                     navController.navigate("timer/$encodedTitle")
                 },
+                onNavigateToRecycleBin = {
+                    navController.navigate("recycle_bin")
+                },
                 onLogout = {
                     // Navigate ke login dan hapus seluruh back stack
                     navController.navigate("login") {
@@ -103,6 +106,15 @@ fun TaskManagerApp() {
                     }
                 }
             )
+        }
+        
+        // Route untuk RecycleBinScreen
+        composable("recycle_bin") {
+             com.example.tubes.ui.screens.RecycleBinScreen(
+                 onNavigateUp = {
+                     navController.popBackStack()
+                 }
+             )
         }
 
         // Route untuk TimerScreen dengan argument

@@ -132,6 +132,9 @@ fun TaskListScreen(
                                     },
                                     onDelete = {
                                         viewModel.deleteTask(task.id)
+                                    },
+                                    onPinClick = {
+                                        viewModel.togglePin(task)
                                     }
                                 )
                             }

@@ -2,6 +2,7 @@ package com.example.tubes.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.util.Log
 import com.example.tubes.model.Task
 import com.example.tubes.repository.TaskRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,8 +31,12 @@ class TaskViewModel : ViewModel() {
     private val _uiState = MutableStateFlow<TaskUiState>(TaskUiState.Loading)
     val uiState: StateFlow<TaskUiState> = _uiState.asStateFlow()
 
+    private val _deletedTasks = MutableStateFlow<List<Task>>(emptyList())
+    val deletedTasks: StateFlow<List<Task>> = _deletedTasks.asStateFlow()
+
     init {
         observeTasks()
+        observeDeletedTasks()
     }
 
     /**
@@ -52,22 +57,37 @@ class TaskViewModel : ViewModel() {
         }
     }
 
+    private fun observeDeletedTasks() {
+        viewModelScope.launch {
+            repository.getDeletedTasks()
+                .catch { e -> 
+                    Log.e("TaskViewModel", "Error fetching deleted tasks", e)
+                }
+                .collect { tasks ->
+                    _deletedTasks.value = tasks
+                }
+        }
+    }
+
     /**
      * Menambahkan task baru
      * 
      * @param title Judul task yang akan ditambahkan
      */
-    fun addTask(title: String, priority: String, category: String) {
+    fun addTask(title: String, priority: String, category: String, dueDate: Long?) {
         if (title.isBlank()) {
+            Log.d("TaskViewModel", "Attempting to add task with blank title")
             _uiState.value = TaskUiState.Error("Judul task tidak boleh kosong")
             return
         }
 
         viewModelScope.launch {
             try {
-                repository.addTask(title, priority, category)
+                Log.d("TaskViewModel", "Adding task: $title, priority: $priority, category: $category, due: $dueDate")
+                repository.addTask(title, priority, category, dueDate)
                 // State akan otomatis update via real-time listener
             } catch (e: Exception) {
+                Log.e("TaskViewModel", "Error adding task", e)
                 _uiState.value = TaskUiState.Error(
                     e.message ?: "Gagal menambahkan task"
                 )
@@ -82,14 +102,65 @@ class TaskViewModel : ViewModel() {
      * @param isCompleted Status baru
      */
     fun updateTaskStatus(taskId: String, isCompleted: Boolean) {
-        viewModelScope.launch {
-            try {
-                repository.updateTaskStatus(taskId, isCompleted)
-                // State akan otomatis update via real-time listener
-            } catch (e: Exception) {
-                _uiState.value = TaskUiState.Error(
-                    e.message ?: "Gagal mengupdate status task"
-                )
+        val currentState = _uiState.value
+        if (currentState is TaskUiState.Success) {
+            val originalList = currentState.tasks
+            // Step A: Optimistic Update
+            val updatedList = originalList.map {
+                if (it.id == taskId) it.copy(isCompleted = isCompleted) else it
+            }
+            _uiState.value = TaskUiState.Success(updatedList)
+            Log.d("TaskViewModel", "Optimistic Update: Status changed for $taskId")
+
+            // Step B: Sync ke Server
+            viewModelScope.launch {
+                try {
+                    repository.updateTaskStatus(taskId, isCompleted)
+                } catch (e: Exception) {
+                    // Step C: Rollback
+                    Log.e("TaskViewModel", "Sync Failed, Rolling back", e)
+                    _uiState.value = TaskUiState.Success(originalList)
+                    _uiState.value = TaskUiState.Error("Gagal mengupdate status: ${e.message}")
+                }
+            }
+        }
+    }
+
+    /**
+     * Toggle status pin task
+     *
+     * @param task Task yang akan dipin/unpin
+     */
+    fun togglePin(task: Task) {
+        val currentState = _uiState.value
+        if (currentState is TaskUiState.Success) {
+            val originalList = currentState.tasks
+            val newPinStatus = !task.isPinned
+            
+            // Step A: Optimistic Update & Client-side Sort
+            val updatedList = originalList.map {
+                if (it.id == task.id) it.copy(isPinned = newPinStatus) else it
+            }
+            val sortedList = updatedList.sortedWith(
+                 compareByDescending<Task> { it.isPinned }
+                 .thenBy { it.isCompleted }
+                 .thenBy(nullsLast()) { it.dueDate }
+                 .thenByDescending { it.timestamp }
+            )
+            
+            _uiState.value = TaskUiState.Success(sortedList)
+            Log.d("TaskViewModel", "Optimistic Update: Pin changed for ${task.id}")
+
+            // Step B: Sync ke Server
+            viewModelScope.launch {
+                try {
+                    repository.togglePinStatus(task.id, task.isPinned)
+                } catch (e: Exception) {
+                    // Step C: Rollback
+                    Log.e("TaskViewModel", "Sync Failed, Rolling back", e)
+                    _uiState.value = TaskUiState.Success(originalList)
+                    _uiState.value = TaskUiState.Error("Gagal mengubah pin: ${e.message}")
+                }
             }
         }
     }
@@ -102,11 +173,35 @@ class TaskViewModel : ViewModel() {
     fun deleteTask(taskId: String) {
         viewModelScope.launch {
             try {
-                repository.deleteTask(taskId)
-                // State akan otomatis update via real-time listener
+                // Change to soft delete
+                repository.softDeleteTask(taskId)
             } catch (e: Exception) {
                 _uiState.value = TaskUiState.Error(
                     e.message ?: "Gagal menghapus task"
+                )
+            }
+        }
+    }
+
+    fun restoreTask(task: Task) {
+        viewModelScope.launch {
+            try {
+                repository.restoreTask(task.id)
+            } catch (e: Exception) {
+                _uiState.value = TaskUiState.Error(
+                    e.message ?: "Gagal memulihkan task"
+                )
+            }
+        }
+    }
+
+    fun deleteTaskPermanently(taskId: String) {
+        viewModelScope.launch {
+            try {
+                repository.deleteTaskPermanently(taskId)
+            } catch (e: Exception) {
+                _uiState.value = TaskUiState.Error(
+                    e.message ?: "Gagal menghapus permanen"
                 )
             }
         }

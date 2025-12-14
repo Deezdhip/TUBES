@@ -43,8 +43,46 @@ class TaskRepository {
         }
 
         val listener = tasksCollection
-            .whereEqualTo("userId", currentUserId)  // Filter hanya task milik user ini
-            // orderBy dihapus untuk menghindari composite index requirement
+            .whereEqualTo("userId", currentUserId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+
+                if (snapshot != null) {
+                    val tasks = snapshot.documents.mapNotNull { document ->
+                        document.toObject(Task::class.java)?.apply {
+                            id = document.id
+                        }
+                    }.filter { !it.isDeleted } // Filter client-side untuk menangani data lama yang mungkin null/default
+                    
+                    // Sort by isPinned (descending) -> isCompleted (ascending) -> dueDate (asc, nulls last) -> timestamp (descending)
+                    val sortedTasks = tasks.sortedWith(
+                        compareByDescending<Task> { it.isPinned }
+                            .thenBy { it.isCompleted }
+                            .thenBy(nullsLast()) { it.dueDate }
+                            .thenByDescending { it.timestamp }
+                    )
+                    trySend(sortedTasks)
+                }
+            }
+
+        awaitClose { listener.remove() }
+    }
+
+    fun getDeletedTasks(): Flow<List<Task>> = callbackFlow {
+        val currentUserId = getCurrentUserId()
+        
+        if (currentUserId == null) {
+            trySend(emptyList())
+            close()
+            return@callbackFlow
+        }
+
+        val listener = tasksCollection
+            .whereEqualTo("userId", currentUserId)
+            .whereEqualTo("isDeleted", true)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     close(error)
@@ -57,7 +95,6 @@ class TaskRepository {
                             id = document.id
                         }
                     }
-                    // Sort by timestamp descending di client-side
                     val sortedTasks = tasks.sortedByDescending { it.timestamp }
                     trySend(sortedTasks)
                 }
@@ -72,7 +109,7 @@ class TaskRepository {
      * @param title Judul task yang akan ditambahkan
      * @throws IllegalStateException jika user belum login
      */
-    suspend fun addTask(title: String, priority: String, category: String) {
+    suspend fun addTask(title: String, priority: String, category: String, dueDate: Long?) {
         try {
             val currentUserId = getCurrentUserId()
                 ?: throw IllegalStateException("User belum login")
@@ -83,6 +120,9 @@ class TaskRepository {
                 isCompleted = false,
                 priority = priority,
                 category = category,
+                isPinned = false,
+                isDeleted = false,
+                dueDate = dueDate,
                 timestamp = System.currentTimeMillis()
             )
             tasksCollection.add(task).await()
@@ -122,5 +162,39 @@ class TaskRepository {
         } catch (e: Exception) {
             throw e
         }
+    }
+
+    suspend fun togglePinStatus(taskId: String, currentStatus: Boolean) {
+        try {
+            tasksCollection.document(taskId)
+                .update("isPinned", !currentStatus)
+                .await()
+        } catch (e: Exception) {
+            throw e
+        }
+    }
+
+    suspend fun softDeleteTask(taskId: String) {
+        try {
+            tasksCollection.document(taskId)
+                .update("isDeleted", true)
+                .await()
+        } catch (e: Exception) {
+            throw e
+        }
+    }
+
+    suspend fun restoreTask(taskId: String) {
+        try {
+            tasksCollection.document(taskId)
+                .update("isDeleted", false)
+                .await()
+        } catch (e: Exception) {
+            throw e
+        }
+    }
+
+    suspend fun deleteTaskPermanently(taskId: String) {
+        deleteTask(taskId)
     }
 }
