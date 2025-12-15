@@ -1,43 +1,73 @@
 package com.example.tubes.repository
 
 import com.example.tubes.model.Task
+import com.example.tubes.util.Resource
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
 
 /**
  * Repository untuk mengelola operasi CRUD Task dengan Firestore.
- * Menggunakan Flow untuk real-time updates.
+ * Menggunakan Kotlin Coroutines Flow untuk real-time updates.
  * Support multi-user dengan Firebase Authentication.
  */
 class TaskRepository {
-    private val db = FirebaseFirestore.getInstance()
+    
+    private val db: FirebaseFirestore = FirebaseFirestore.getInstance()
+    private val auth: FirebaseAuth = FirebaseAuth.getInstance()
     private val tasksCollection = db.collection("tasks")
-    private val auth = FirebaseAuth.getInstance()
 
+    // ==================== HELPER FUNCTIONS ====================
+    
     /**
      * Mendapatkan current user ID.
-     * Null jika user belum login.
+     * @return User ID atau null jika user belum login.
      */
-    private fun getCurrentUserId(): String? {
-        return auth.currentUser?.uid
-    }
+    private fun getCurrentUserId(): String? = auth.currentUser?.uid
 
     /**
-     * Mendapatkan semua tasks milik user yang sedang login secara real-time menggunakan Flow.
+     * Sorting comparator untuk tasks.
+     * Urutan: isPinned (desc) -> isCompleted (asc) -> dueDate (asc, nulls last) -> timestamp (desc)
+     */
+    private fun getTaskComparator(): Comparator<Task> = compareByDescending<Task> { it.isPinned }
+        .thenBy { it.isCompleted }
+        .thenBy(nullsLast()) { it.dueDate }
+        .thenByDescending { it.timestamp }
+
+    /**
+     * Mengonversi Firestore document ke Task object dengan ID.
+     */
+    private fun documentToTask(document: com.google.firebase.firestore.DocumentSnapshot): Task? {
+        return document.toObject(Task::class.java)?.copy(id = document.id)
+    }
+
+    // ==================== READ OPERATIONS ====================
+
+    /**
+     * Mendapatkan semua tasks (non-deleted) milik user yang sedang login secara real-time.
      * Data akan otomatis update ketika ada perubahan di Firestore.
      * 
-     * @return Flow yang emit list tasks milik user, atau empty list jika user belum login
+     * Sorting:
+     * 1. isPinned (Descending) - Pinned tasks di atas
+     * 2. isCompleted (Ascending) - Incomplete tasks di atas
+     * 3. dueDate (Ascending) - Deadline terdekat di atas, null di bawah
+     * 4. timestamp (Descending) - Terbaru di atas
+     * 
+     * @return Flow<Resource<List<Task>>> dengan state Loading, Success, atau Error
      */
-    fun getTasks(): Flow<List<Task>> = callbackFlow {
+    fun getTasks(): Flow<Resource<List<Task>>> = callbackFlow {
+        // Emit loading state
+        trySend(Resource.Loading())
+        
         val currentUserId = getCurrentUserId()
         
-        // Jika user belum login, emit empty list
+        // Jika user belum login, emit error
         if (currentUserId == null) {
-            trySend(emptyList())
+            trySend(Resource.Error("User belum login"))
             close()
             return@callbackFlow
         }
@@ -46,36 +76,39 @@ class TaskRepository {
             .whereEqualTo("userId", currentUserId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(error)
+                    trySend(Resource.Error(error.message ?: "Terjadi kesalahan saat mengambil data"))
                     return@addSnapshotListener
                 }
 
                 if (snapshot != null) {
-                    val tasks = snapshot.documents.mapNotNull { document ->
-                        document.toObject(Task::class.java)?.apply {
-                            id = document.id
-                        }
-                    }.filter { !it.isDeleted } // Filter client-side untuk menangani data lama yang mungkin null/default
-                    
-                    // Sort by isPinned (descending) -> isCompleted (ascending) -> dueDate (asc, nulls last) -> timestamp (descending)
-                    val sortedTasks = tasks.sortedWith(
-                        compareByDescending<Task> { it.isPinned }
-                            .thenBy { it.isCompleted }
-                            .thenBy(nullsLast()) { it.dueDate }
-                            .thenByDescending { it.timestamp }
-                    )
-                    trySend(sortedTasks)
+                    try {
+                        val tasks = snapshot.documents
+                            .mapNotNull { documentToTask(it) }
+                            .filter { !it.isDeleted }
+                            .sortedWith(getTaskComparator())
+                        
+                        trySend(Resource.Success(tasks))
+                    } catch (e: Exception) {
+                        trySend(Resource.Error(e.message ?: "Gagal memproses data"))
+                    }
                 }
             }
 
         awaitClose { listener.remove() }
     }
 
-    fun getDeletedTasks(): Flow<List<Task>> = callbackFlow {
+    /**
+     * Mendapatkan semua deleted tasks milik user untuk Recycle Bin.
+     * 
+     * @return Flow<Resource<List<Task>>> dengan tasks yang isDeleted = true
+     */
+    fun getDeletedTasks(): Flow<Resource<List<Task>>> = callbackFlow {
+        trySend(Resource.Loading())
+        
         val currentUserId = getCurrentUserId()
         
         if (currentUserId == null) {
-            trySend(emptyList())
+            trySend(Resource.Error("User belum login"))
             close()
             return@callbackFlow
         }
@@ -85,47 +118,87 @@ class TaskRepository {
             .whereEqualTo("isDeleted", true)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(error)
+                    trySend(Resource.Error(error.message ?: "Terjadi kesalahan"))
                     return@addSnapshotListener
                 }
 
                 if (snapshot != null) {
-                    val tasks = snapshot.documents.mapNotNull { document ->
-                        document.toObject(Task::class.java)?.apply {
-                            id = document.id
-                        }
+                    try {
+                        val tasks = snapshot.documents
+                            .mapNotNull { documentToTask(it) }
+                            .sortedByDescending { it.timestamp }
+                        
+                        trySend(Resource.Success(tasks))
+                    } catch (e: Exception) {
+                        trySend(Resource.Error(e.message ?: "Gagal memproses data"))
                     }
-                    val sortedTasks = tasks.sortedByDescending { it.timestamp }
-                    trySend(sortedTasks)
                 }
             }
 
         awaitClose { listener.remove() }
     }
 
+    // ==================== CREATE OPERATIONS ====================
+
     /**
-     * Menambahkan task baru ke Firestore dengan userId dari user yang sedang login.
+     * Menambahkan task baru ke Firestore.
      * 
-     * @param title Judul task yang akan ditambahkan
+     * @param task Task object yang akan ditambahkan (id akan di-generate oleh Firestore)
      * @throws IllegalStateException jika user belum login
      */
-    suspend fun addTask(title: String, priority: String, category: String, dueDate: Long?) {
+    suspend fun addTask(task: Task) {
         try {
             val currentUserId = getCurrentUserId()
                 ?: throw IllegalStateException("User belum login")
 
-            val task = Task(
-                userId = currentUserId,  // Set userId dari user yang login
-                title = title,
-                isCompleted = false,
-                priority = priority,
-                category = category,
-                isPinned = false,
-                isDeleted = false,
-                dueDate = dueDate,
+            val newTask = task.copy(
+                userId = currentUserId,
                 timestamp = System.currentTimeMillis()
             )
-            tasksCollection.add(task).await()
+            
+            tasksCollection.add(newTask).await()
+        } catch (e: Exception) {
+            throw e
+        }
+    }
+
+    /**
+     * Menambahkan task baru dengan parameter individual.
+     * 
+     * @param title Judul task
+     * @param priority Prioritas: Low, Medium, High
+     * @param category Kategori: Work, Study, Personal, Others
+     * @param dueDate Deadline dalam milliseconds (nullable)
+     */
+    suspend fun addTask(title: String, priority: String, category: String, dueDate: Long?) {
+        val task = Task(
+            title = title,
+            priority = priority,
+            category = category,
+            dueDate = dueDate,
+            isCompleted = false,
+            isPinned = false,
+            isDeleted = false
+        )
+        addTask(task)
+    }
+
+    // ==================== UPDATE OPERATIONS ====================
+
+    /**
+     * Mengupdate task yang sudah ada.
+     * 
+     * @param task Task dengan data yang sudah diupdate (harus memiliki id valid)
+     */
+    suspend fun updateTask(task: Task) {
+        try {
+            if (task.id.isEmpty()) {
+                throw IllegalArgumentException("Task ID tidak boleh kosong")
+            }
+            
+            tasksCollection.document(task.id)
+                .set(task)
+                .await()
         } catch (e: Exception) {
             throw e
         }
@@ -133,7 +206,6 @@ class TaskRepository {
 
     /**
      * Mengupdate status penyelesaian task.
-     * Hanya bisa update task milik user sendiri (security handled by Firestore rules).
      * 
      * @param taskId ID dokumen task di Firestore
      * @param isCompleted Status baru untuk task
@@ -149,8 +221,35 @@ class TaskRepository {
     }
 
     /**
-     * Menghapus task dari Firestore.
-     * Hanya bisa hapus task milik user sendiri (security handled by Firestore rules).
+     * Toggle status pin task.
+     * 
+     * @param taskId ID task yang akan di-toggle
+     * @param isPinned Status pin baru
+     */
+    suspend fun togglePin(taskId: String, isPinned: Boolean) {
+        try {
+            tasksCollection.document(taskId)
+                .update("isPinned", isPinned)
+                .await()
+        } catch (e: Exception) {
+            throw e
+        }
+    }
+
+    /**
+     * Toggle status pin task berdasarkan status saat ini.
+     * 
+     * @param taskId ID task
+     * @param currentStatus Status pin saat ini (akan di-invert)
+     */
+    suspend fun togglePinStatus(taskId: String, currentStatus: Boolean) {
+        togglePin(taskId, !currentStatus)
+    }
+
+    // ==================== DELETE OPERATIONS ====================
+
+    /**
+     * Menghapus task secara permanen dari Firestore.
      * 
      * @param taskId ID dokumen task yang akan dihapus
      */
@@ -164,16 +263,12 @@ class TaskRepository {
         }
     }
 
-    suspend fun togglePinStatus(taskId: String, currentStatus: Boolean) {
-        try {
-            tasksCollection.document(taskId)
-                .update("isPinned", !currentStatus)
-                .await()
-        } catch (e: Exception) {
-            throw e
-        }
-    }
-
+    /**
+     * Soft delete - Memindahkan task ke recycle bin.
+     * Task tidak dihapus permanen, hanya menandai isDeleted = true.
+     * 
+     * @param taskId ID task yang akan dipindahkan ke recycle bin
+     */
     suspend fun softDeleteTask(taskId: String) {
         try {
             tasksCollection.document(taskId)
@@ -184,6 +279,12 @@ class TaskRepository {
         }
     }
 
+    /**
+     * Mengembalikan task dari recycle bin.
+     * Menandai isDeleted = false.
+     * 
+     * @param taskId ID task yang akan dikembalikan
+     */
     suspend fun restoreTask(taskId: String) {
         try {
             tasksCollection.document(taskId)
@@ -194,6 +295,11 @@ class TaskRepository {
         }
     }
 
+    /**
+     * Alias untuk deleteTask - Menghapus task secara permanen.
+     * 
+     * @param taskId ID task yang akan dihapus permanen
+     */
     suspend fun deleteTaskPermanently(taskId: String) {
         deleteTask(taskId)
     }

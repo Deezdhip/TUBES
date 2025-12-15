@@ -124,17 +124,15 @@ fun TaskListScreen(
                             ) { task ->
                                 TaskItem(
                                     task = task,
-                                    onClick = {
-                                        onNavigateToTimer(task.title)
+                                    onClick = { onNavigateToTimer(it.title) },
+                                    onCheckClick = { t, isCompleted ->
+                                        viewModel.updateTaskStatus(t.id, isCompleted)
                                     },
-                                    onCheckedChange = { isCompleted ->
-                                        viewModel.updateTaskStatus(task.id, isCompleted)
+                                    onDeleteClick = { t ->
+                                        viewModel.deleteTask(t.id)
                                     },
-                                    onDelete = {
-                                        viewModel.deleteTask(task.id)
-                                    },
-                                    onPinClick = {
-                                        viewModel.togglePin(task)
+                                    onPinClick = { t ->
+                                        viewModel.togglePin(t)
                                     }
                                 )
                             }

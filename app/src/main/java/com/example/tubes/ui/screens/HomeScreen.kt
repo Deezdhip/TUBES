@@ -314,14 +314,13 @@ fun HomeScreen(
                                     ) { task ->
                                         TaskItem(
                                             task = task,
-                                            onClick = { onNavigateToTimer(task.title) },
-                                            onCheckedChange = { 
-                                                // Show feedback
+                                            onClick = { onNavigateToTimer(it.title) },
+                                            onCheckClick = { t, isChecked ->
                                                 android.widget.Toast.makeText(context, "Updating status...", android.widget.Toast.LENGTH_SHORT).show()
-                                                viewModel.updateTaskStatus(task.id, it) 
+                                                viewModel.updateTaskStatus(t.id, isChecked) 
                                             },
-                                            onDelete = { 
-                                                viewModel.deleteTask(task.id) 
+                                            onDeleteClick = { t ->
+                                                viewModel.deleteTask(t.id) 
                                                 // Show Undo Snackbar
                                                 scope.launch {
                                                     val result = snackbarHostState.showSnackbar(
@@ -330,14 +329,14 @@ fun HomeScreen(
                                                         duration = SnackbarDuration.Short
                                                     )
                                                     if (result == SnackbarResult.ActionPerformed) {
-                                                        viewModel.restoreTask(task)
+                                                        viewModel.restoreTask(t)
                                                     }
                                                 }
                                             },
-                                            onPinClick = { 
-                                                val msg = if (task.isPinned) "Unpinning..." else "Pinning..."
+                                            onPinClick = { t ->
+                                                val msg = if (t.isPinned) "Unpinning..." else "Pinning..."
                                                 android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
-                                                viewModel.togglePin(task) 
+                                                viewModel.togglePin(t) 
                                             }
                                         )
                                     }
