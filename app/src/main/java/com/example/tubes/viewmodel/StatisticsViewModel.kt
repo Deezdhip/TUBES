@@ -3,6 +3,7 @@ package com.example.tubes.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.tubes.repository.TaskRepository
+import com.example.tubes.util.DateUtils
 import com.example.tubes.util.Resource
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -10,6 +11,7 @@ import kotlinx.coroutines.launch
 data class StatsUiState(
     val totalTasks: Int = 0,
     val completedTasks: Int = 0,
+    val overdueTasks: Int = 0,
     val totalFocusMinutes: Int = 0,
     val tasksByCategory: Map<String, Int> = emptyMap(),
     val isLoading: Boolean = false,
@@ -36,12 +38,16 @@ class StatisticsViewModel : ViewModel() {
                     is Resource.Success -> {
                         val tasks = resource.data ?: emptyList()
                         val completed = tasks.count { it.isCompleted }
+                        val overdue = tasks.count { 
+                            !it.isCompleted && DateUtils.isOverdue(it.dueDate) 
+                        }
                         val byCategory = tasks.groupBy { it.category }
                             .mapValues { it.value.size }
                         
                         _uiState.value = StatsUiState(
                             totalTasks = tasks.size,
                             completedTasks = completed,
+                            overdueTasks = overdue,
                             totalFocusMinutes = completed * 25,
                             tasksByCategory = byCategory,
                             isLoading = false,

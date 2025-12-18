@@ -150,6 +150,13 @@ private fun DeletedTaskItem(
                     color = Color.Gray,
                     style = MaterialTheme.typography.bodyLarge
                 )
+                if (task.dueDate != null) {
+                    Text(
+                        text = "📅 ${com.example.tubes.util.DateUtils.formatDateTime(task.dueDate)}",
+                        color = Color.Gray.copy(alpha = 0.7f),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
                 Text(
                     text = "Deleted",
                     color = Color.Gray,

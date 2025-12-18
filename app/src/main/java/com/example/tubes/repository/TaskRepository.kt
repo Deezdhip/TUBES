@@ -1,6 +1,7 @@
 package com.example.tubes.repository
 
 import com.example.tubes.model.Task
+import com.example.tubes.util.DateUtils
 import com.example.tubes.util.Resource
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -31,9 +32,15 @@ class TaskRepository {
 
     /**
      * Sorting comparator untuk tasks.
-     * Urutan: isPinned (desc) -> isCompleted (asc) -> dueDate (asc, nulls last) -> timestamp (desc)
+     * Urutan prioritas:
+     * 1. isPinned (desc) - Pinned tasks di atas
+     * 2. isOverdue (desc) - Overdue tasks (belum selesai) diprioritaskan
+     * 3. isCompleted (asc) - Belum selesai di atas
+     * 4. dueDate (asc, nulls last) - Deadline terdekat di atas
+     * 5. timestamp (desc) - Terbaru di atas
      */
     private fun getTaskComparator(): Comparator<Task> = compareByDescending<Task> { it.isPinned }
+        .thenByDescending { !it.isCompleted && DateUtils.isOverdue(it.dueDate) } // Overdue di atas
         .thenBy { it.isCompleted }
         .thenBy(nullsLast()) { it.dueDate }
         .thenByDescending { it.timestamp }
@@ -53,9 +60,10 @@ class TaskRepository {
      * 
      * Sorting:
      * 1. isPinned (Descending) - Pinned tasks di atas
-     * 2. isCompleted (Ascending) - Incomplete tasks di atas
-     * 3. dueDate (Ascending) - Deadline terdekat di atas, null di bawah
-     * 4. timestamp (Descending) - Terbaru di atas
+     * 2. isOverdue (Descending) - Overdue tasks diprioritaskan
+     * 3. isCompleted (Ascending) - Incomplete tasks di atas
+     * 4. dueDate (Ascending) - Deadline terdekat di atas, null di bawah
+     * 5. timestamp (Descending) - Terbaru di atas
      * 
      * @return Flow<Resource<List<Task>>> dengan state Loading, Success, atau Error
      */

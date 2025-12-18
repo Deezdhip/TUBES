@@ -9,41 +9,49 @@ import java.util.Locale
  */
 object DateUtils {
     
-    private const val DATE_FORMAT_PATTERN = "dd MMM yyyy, HH:mm"
+    private const val DATE_TIME_FORMAT_PATTERN = "dd MMM yyyy, HH:mm"
     
     /**
-     * Formats a timestamp (Long) into a readable date string.
-     * Format: "dd MMM yyyy, HH:mm" (e.g., "15 Dec 2025, 14:30")
+     * Formats a timestamp (Long) into a readable date-time string.
+     * Format: "dd MMM yyyy, HH:mm" (e.g., "18 Dec 2025, 14:30")
      * 
-     * @param timestamp The timestamp to format. Can be null.
+     * @param timestamp The timestamp to format in milliseconds. Can be null.
      * @return Formatted string or empty string if timestamp is null.
      */
-    fun formatDate(timestamp: Long?): String {
+    fun formatDateTime(timestamp: Long?): String {
         if (timestamp == null) return ""
         
         val date = Date(timestamp)
-        val format = SimpleDateFormat(DATE_FORMAT_PATTERN, Locale.getDefault())
+        val format = SimpleDateFormat(DATE_TIME_FORMAT_PATTERN, Locale.getDefault())
         return format.format(date)
     }
     
     /**
-     * Alias untuk formatDate - untuk kompatibilitas dengan kode lama.
-     * Format: "dd MMM yyyy, HH:mm" (e.g., "15 Dec 2025, 14:30")
+     * Alias untuk formatDateTime - untuk kompatibilitas dengan kode lama.
+     * Format: "dd MMM yyyy, HH:mm" (e.g., "18 Dec 2025, 14:30")
      * 
      * @param timestamp The timestamp to format. Can be null.
      * @return Formatted string or empty string if timestamp is null.
      */
-    fun formatDeadline(timestamp: Long?): String = formatDate(timestamp)
+    fun formatDate(timestamp: Long?): String = formatDateTime(timestamp)
+    
+    /**
+     * Alias untuk formatDateTime - untuk kompatibilitas dengan kode lama.
+     * Format: "dd MMM yyyy, HH:mm" (e.g., "18 Dec 2025, 14:30")
+     * 
+     * @param timestamp The timestamp to format. Can be null.
+     * @return Formatted string or empty string if timestamp is null.
+     */
+    fun formatDeadline(timestamp: Long?): String = formatDateTime(timestamp)
 
     /**
-     * Checks if a deadline is overdue.
+     * Checks if a deadline is overdue (past current time).
      * 
-     * @param dueDate The deadline timestamp.
-     * @return True if current time > dueDate.
+     * @param timestamp The deadline timestamp in milliseconds.
+     * @return True if timestamp < System.currentTimeMillis(), false if null or not overdue.
      */
-    fun isOverdue(dueDate: Long?): Boolean {
-        if (dueDate == null) return false
-        return System.currentTimeMillis() > dueDate
+    fun isOverdue(timestamp: Long?): Boolean {
+        if (timestamp == null) return false
+        return timestamp < System.currentTimeMillis()
     }
 }
-

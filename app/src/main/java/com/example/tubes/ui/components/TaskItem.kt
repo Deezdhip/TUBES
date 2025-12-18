@@ -65,14 +65,24 @@ fun TaskItem(
             .clickable { onClick(task) },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (task.isPinned) Color(0xFF2C2C2C) else TaskCardDark
+            containerColor = when {
+                isOverdue -> Color(0xFF2A1A1A) // Darker red-tinted background for overdue
+                task.isPinned -> Color(0xFF2C2C2C)
+                else -> TaskCardDark
+            }
         ),
         elevation = CardDefaults.cardElevation(
-            defaultElevation = if (task.isPinned) 6.dp else 2.dp
+            defaultElevation = when {
+                isOverdue -> 8.dp // Higher elevation for overdue
+                task.isPinned -> 6.dp
+                else -> 2.dp
+            }
         ),
-        border = if (task.isPinned) {
-            BorderStroke(1.dp, PinActiveColor.copy(alpha = 0.5f))
-        } else null
+        border = when {
+            isOverdue -> BorderStroke(2.dp, OverdueColor) // RED border for overdue
+            task.isPinned -> BorderStroke(1.dp, PinActiveColor.copy(alpha = 0.5f))
+            else -> null
+        }
     ) {
         Row(
             modifier = Modifier
@@ -135,7 +145,7 @@ fun TaskItem(
                 if (task.dueDate != null) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "📅 ${DateUtils.formatDate(task.dueDate)}",
+                        text = "📅 ${DateUtils.formatDateTime(task.dueDate)}",
                         style = MaterialTheme.typography.bodySmall,
                         fontSize = 12.sp,
                         color = when {

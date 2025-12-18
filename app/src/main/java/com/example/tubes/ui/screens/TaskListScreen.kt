@@ -170,8 +170,8 @@ fun TaskListScreen(
     if (showDialog) {
         AddTaskDialog(
             onDismiss = { showDialog = false },
-            onAdd = { title, priority, category ->
-                viewModel.addTask(title, priority, category, null)
+            onAdd = { title, priority, category, dueDate ->
+                viewModel.addTask(title, priority, category, dueDate)
                 showDialog = false
             }
         )

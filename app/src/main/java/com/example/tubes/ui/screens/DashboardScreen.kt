@@ -72,12 +72,20 @@ fun DashboardScreen(
                     )
                 }
                 Spacer(modifier = Modifier.height(16.dp))
-                DashboardStatCard(
-                    title = "Estimated Focus Time",
-                    value = "${uiState.totalFocusMinutes} min",
-                    modifier = Modifier.fillMaxWidth(),
-                    color = WarningOrange
-                )
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    DashboardStatCard(
+                        title = "Overdue",
+                        value = "${uiState.overdueTasks}",
+                        modifier = Modifier.weight(1f),
+                        color = Color(0xFFFF4444) // Red for overdue
+                    )
+                    DashboardStatCard(
+                        title = "Focus Time",
+                        value = "${uiState.totalFocusMinutes} min",
+                        modifier = Modifier.weight(1f),
+                        color = WarningOrange
+                    )
+                }
             }
 
             // Category Breakdown
