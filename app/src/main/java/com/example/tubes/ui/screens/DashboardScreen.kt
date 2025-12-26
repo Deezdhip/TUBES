@@ -87,6 +87,44 @@ fun DashboardScreen(
                     )
                 }
             }
+            
+            // Progress Card - Real-time completion percentage
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = SurfaceCard),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Progress",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = OnBackgroundWhite
+                            )
+                            Text(
+                                text = "${String.format("%.1f", uiState.completionPercentage)}%",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = SuccessGreen
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                        LinearProgressIndicator(
+                            progress = { uiState.completionPercentage / 100f },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(8.dp),
+                            color = SuccessGreen,
+                            trackColor = OnSurfaceVariant.copy(alpha = 0.3f),
+                        )
+                    }
+                }
+            }
 
             // Category Breakdown
             item {

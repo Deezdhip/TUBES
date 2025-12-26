@@ -3,75 +3,102 @@ package com.example.tubes.ui.theme
 import android.app.Activity
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 /**
- * Slate Blue Dark Theme
+ * Light Color Scheme untuk White Minimalist Theme
+ * dengan aksen Royal Blue
  */
-private val AppColorScheme = darkColorScheme(
+private val LightColorScheme = lightColorScheme(
     // Primary colors
     primary = PrimaryBlue,
-    onPrimary = OnBackgroundWhite,
-    primaryContainer = PrimaryBlue,
-    onPrimaryContainer = OnBackgroundWhite,
+    onPrimary = SurfaceWhite,
+    primaryContainer = PrimaryBlue.copy(alpha = 0.12f),
+    onPrimaryContainer = PrimaryVariant,
     
-    // Secondary colors
-    secondary = PrimaryBlue.copy(alpha = 0.7f),
-    onSecondary = OnBackgroundWhite,
-    secondaryContainer = SurfaceCard,
-    onSecondaryContainer = OnSurfaceVariant,
+    // Secondary colors (menggunakan variant dari primary)
+    secondary = PrimaryVariant,
+    onSecondary = SurfaceWhite,
+    secondaryContainer = PrimaryBlue.copy(alpha = 0.08f),
+    onSecondaryContainer = PrimaryVariant,
     
-    // Tertiary colors
-    tertiary = SuccessGreen,
-    onTertiary = BackgroundDark,
+    // Tertiary colors (menggunakan accent color)
+    tertiary = PinGold,
+    onTertiary = SurfaceWhite,
+    tertiaryContainer = PinGold.copy(alpha = 0.12f),
+    onTertiaryContainer = PinGold,
     
     // Background colors
-    background = BackgroundDark,
-    onBackground = OnBackgroundWhite,
+    background = BackgroundLight,
+    onBackground = TextPrimary,
     
     // Surface colors
-    surface = SurfaceCard,
-    onSurface = OnBackgroundWhite,
-    surfaceVariant = SurfaceCard,
-    onSurfaceVariant = OnSurfaceVariant,
-    
-    // Container colors
-    surfaceContainerHighest = SurfaceCard,
-    surfaceContainer = SurfaceCard,
-    surfaceContainerLow = BackgroundDark,
+    surface = SurfaceWhite,
+    onSurface = TextPrimary,
+    surfaceVariant = BackgroundLight,
+    onSurfaceVariant = TextSecondary,
     
     // Error colors
-    error = WarningOrange,
-    onError = OnBackgroundWhite,
+    error = ErrorRed,
+    onError = SurfaceWhite,
+    errorContainer = ErrorRed.copy(alpha = 0.12f),
+    onErrorContainer = ErrorRed,
     
-    // Outline
-    outline = DividerColor,
-    outlineVariant = SurfaceCard
+    // Other colors
+    outline = DividerGrey,
+    outlineVariant = DividerGrey.copy(alpha = 0.5f),
+    scrim = TextPrimary.copy(alpha = 0.32f),
+    
+    // Inverse colors (untuk snackbar, dll)
+    inverseSurface = TextPrimary,
+    inverseOnSurface = SurfaceWhite,
+    inversePrimary = PrimaryBlue.copy(alpha = 0.8f),
+    
+    // Surface tint
+    surfaceTint = PrimaryBlue
 )
 
+/**
+ * TUBES Theme - White Minimalist dengan Royal Blue accent
+ * 
+ * CATATAN: Theme ini SELALU menggunakan LightColorScheme
+ * untuk tampilan konsisten putih minimalis.
+ * Dynamic color dan dark theme dinonaktifkan.
+ */
+@Suppress("DEPRECATION")
 @Composable
 fun TUBESTheme(
-    // Force dark theme always
-    darkTheme: Boolean = true,
+    darkTheme: Boolean = isSystemInDarkTheme(), // Parameter diabaikan
+    dynamicColor: Boolean = false, // Dynamic color dinonaktifkan
     content: @Composable () -> Unit
 ) {
+    // SELALU gunakan Light scheme untuk tampilan konsisten
+    val colorScheme = LightColorScheme
+    
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = BackgroundDark.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
+            
+            // Set status bar color ke background light
+            window.statusBarColor = BackgroundLight.toArgb()
+            
+            // Gunakan dark icons di status bar (karena background terang)
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = true
+            
+            // Set navigation bar juga light
+            window.navigationBarColor = BackgroundLight.toArgb()
+            WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = true
         }
     }
 
     MaterialTheme(
-        colorScheme = AppColorScheme,
+        colorScheme = colorScheme,
         typography = Typography,
         content = content
     )

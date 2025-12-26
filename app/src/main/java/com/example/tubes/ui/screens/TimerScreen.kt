@@ -16,23 +16,19 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.tubes.ui.theme.*
-
-import kotlinx.coroutines.delay
-
-
-/**
- * Enum untuk state timer
- */
-enum class TimerState {
-    IDLE, RUNNING, PAUSED
-}
+import com.example.tubes.util.NotificationHelper
+import com.example.tubes.util.SoundManager
+import com.example.tubes.viewmodel.TimerState
+import com.example.tubes.viewmodel.TimerViewModel
 
 /**
- * TimerScreen - Pomodoro timer untuk fokus mengerjakan task.
+ * TimerScreen - Task Timer untuk fokus mengerjakan task.
  * 
  * @param taskTitle Judul task yang sedang dikerjakan
  * @param modifier Modifier untuk screen
@@ -44,73 +40,67 @@ fun TimerScreen(
     taskTitle: String,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
-    initialTimeInMinutes: Int = 25
+    initialTimeInMinutes: Int = 25,
+    timerViewModel: TimerViewModel = viewModel()
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val soundManager = remember { com.example.tubes.util.SoundManager(context) }
+    val context = LocalContext.current
+    val soundManager = remember { SoundManager(context) }
     
-    // State untuk timer
-    var timerState by remember { mutableStateOf(TimerState.IDLE) }
-    // Store duration in SECONDS now
-    var selectedDurationInSeconds by remember { mutableIntStateOf(initialTimeInMinutes * 60) }
-    var timeLeftInSeconds by remember { mutableIntStateOf(selectedDurationInSeconds) }
-    var totalTimeInSeconds by remember { mutableIntStateOf(selectedDurationInSeconds) }
+    // Collect UI state dari ViewModel
+    val uiState by timerViewModel.uiState.collectAsState()
     
     // Dialog state
     var showCustomDialog by remember { mutableStateOf(false) }
-    
-    // Ambient Sound State
     var showSoundDialog by remember { mutableStateOf(false) }
-    var selectedSound by remember { mutableStateOf("Off") } // Off, Rain, Cafe, White Noise
-
-    // Update timer when duration changes (only if IDLE)
-    LaunchedEffect(selectedDurationInSeconds) {
-        if (timerState == TimerState.IDLE) {
-            totalTimeInSeconds = selectedDurationInSeconds
-            timeLeftInSeconds = totalTimeInSeconds
+    
+    // Initialize timer duration saat pertama kali
+    LaunchedEffect(initialTimeInMinutes) {
+        if (uiState.timerState == TimerState.IDLE) {
+            timerViewModel.setDuration(initialTimeInMinutes)
         }
     }
     
-    // Clean up sound on exit
-    DisposableEffect(Unit) {
-        onDispose {
+    // Handle timer completion - VIBRATE, SOUND, dan NOTIFICATION
+    LaunchedEffect(uiState.timerCompleted) {
+        if (uiState.timerCompleted) {
+            // 1. Stop ambient sound
             soundManager.stopSound()
-        }
-    }
-
-    // Hitung progress (1.0 = penuh, 0.0 = habis)
-    val progress by animateFloatAsState(
-        targetValue = timeLeftInSeconds.toFloat() / totalTimeInSeconds.toFloat(),
-        animationSpec = tween(durationMillis = 300),
-        label = "progress"
-    )
-
-    // LaunchedEffect untuk countdown
-    LaunchedEffect(timerState, timeLeftInSeconds) {
-        if (timerState == TimerState.RUNNING && timeLeftInSeconds > 0) {
-            delay(1000L)
-            timeLeftInSeconds--
-        } else if (timeLeftInSeconds == 0) {
-            timerState = TimerState.IDLE
-            soundManager.stopSound()
-            // Timer selesai - bisa tambahkan notifikasi atau sound di sini
+            
+            // 2. Trigger completion feedback (vibrate + notification + sound)
+            timerViewModel.triggerCompletionFeedback(context, taskTitle)
+            
+            // 3. Clear flag agar tidak trigger lagi
+            timerViewModel.clearCompletionFlag()
         }
     }
     
-    // Manage Sound Playback
-    LaunchedEffect(timerState, selectedSound) {
-        if (timerState == TimerState.RUNNING && selectedSound != "Off") {
+    // Manage Ambient Sound Playback
+    LaunchedEffect(uiState.timerState, uiState.selectedSound) {
+        if (uiState.timerState == TimerState.RUNNING && uiState.selectedSound != "Off") {
             // In a real app, map "Rain" to R.raw.rain, etc.
-            // For now, we simulate or pass a dummy ID (e.g., 0 or a system sound if available, but 12345 is dummy)
-            // Ideally we would have:
-            // val resId = when(selectedSound) { "Rain" -> R.raw.rain ... }
-            // soundManager.playSound(resId)
-            // Since we don't have assets, we won't crash because of try-catch in SoundManager, but logic is here.
-             soundManager.playSound(if (selectedSound == "Rain") 1 else 0) 
+            // Since we don't have assets, we use a placeholder
+            soundManager.playSound(if (uiState.selectedSound == "Rain") 1 else 0) 
         } else {
             soundManager.stopSound()
         }
     }
+    
+    // Clean up sound dan resources on exit
+    DisposableEffect(Unit) {
+        onDispose {
+            soundManager.stopSound()
+            // Timer cleanup handled by ViewModel.onCleared()
+        }
+    }
+    
+    // Hitung progress (1.0 = penuh, 0.0 = habis)
+    val progress by animateFloatAsState(
+        targetValue = if (uiState.totalTimeInSeconds > 0) {
+            uiState.timeLeftInSeconds.toFloat() / uiState.totalTimeInSeconds.toFloat()
+        } else 1f,
+        animationSpec = tween(durationMillis = 300),
+        label = "progress"
+    )
 
     Scaffold(
         topBar = {
@@ -129,19 +119,19 @@ fun TimerScreen(
                     // Sound Button
                     IconButton(onClick = { showSoundDialog = true }) {
                         Icon(
-                            imageVector = Icons.Filled.Notifications, // Using Notifications as proxy for Sound
+                            imageVector = Icons.Filled.Notifications,
                             contentDescription = "Ambient Sound",
-                            tint = if (selectedSound == "Off") OnSurfaceVariant else PrimaryBlue
+                            tint = if (uiState.selectedSound == "Off") OnSurfaceVariant else PrimaryBlue
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent, // Transparent
+                    containerColor = Color.Transparent,
                     titleContentColor = OnBackgroundWhite
                 )
             )
         },
-        containerColor = BackgroundDark // Background for Scaffold
+        containerColor = BackgroundDark
     ) { paddingValues ->
         Box(
             modifier = modifier
@@ -188,18 +178,18 @@ fun TimerScreen(
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                     
-                    if (selectedSound != "Off") {
+                    if (uiState.selectedSound != "Off") {
                         Spacer(modifier = Modifier.height(8.dp))
                         SuggestionChip(
                             onClick = { showSoundDialog = true },
-                            label = { Text("♫ $selectedSound") },
+                            label = { Text("♫ ${uiState.selectedSound}") },
                             colors = SuggestionChipDefaults.suggestionChipColors(containerColor = SurfaceCard)
                         )
                     }
                 }
                 
                 // Duration Selection
-                if (timerState == TimerState.IDLE) {
+                if (uiState.timerState == TimerState.IDLE) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         OutlinedButton(
                             onClick = { showCustomDialog = true },
@@ -236,7 +226,7 @@ fun TimerScreen(
                     CircularProgressIndicator(
                         progress = { progress },
                         modifier = Modifier.fillMaxSize(),
-                        color = when (timerState) {
+                        color = when (uiState.timerState) {
                             TimerState.RUNNING -> PrimaryBlue
                             TimerState.PAUSED -> WarningOrange
                             TimerState.IDLE -> SuccessGreen
@@ -248,7 +238,7 @@ fun TimerScreen(
 
                     // Timer text di tengah
                     Text(
-                        text = formatTime(timeLeftInSeconds),
+                        text = formatTime(uiState.timeLeftInSeconds),
                         style = MaterialTheme.typography.displayLarge,
                         fontSize = 64.sp,
                         fontWeight = FontWeight.Bold,
@@ -263,12 +253,7 @@ fun TimerScreen(
                 ) {
                     // Start/Pause Button
                     Button(
-                        onClick = {
-                            timerState = when (timerState) {
-                                TimerState.IDLE, TimerState.PAUSED -> TimerState.RUNNING
-                                TimerState.RUNNING -> TimerState.PAUSED
-                            }
-                        },
+                        onClick = { timerViewModel.toggleTimer() },
                         modifier = Modifier
                             .weight(1f)
                             .height(56.dp),
@@ -278,7 +263,7 @@ fun TimerScreen(
                             contentColor = Color.White
                         )
                     ) {
-                        if (timerState != TimerState.RUNNING) {
+                        if (uiState.timerState != TimerState.RUNNING) {
                             Icon(
                                 imageVector = Icons.Filled.PlayArrow,
                                 contentDescription = "Start",
@@ -287,7 +272,7 @@ fun TimerScreen(
                             Spacer(modifier = Modifier.width(8.dp))
                         }
                         Text(
-                            text = when (timerState) {
+                            text = when (uiState.timerState) {
                                 TimerState.RUNNING -> "Pause"
                                 else -> "Start"
                             },
@@ -298,15 +283,12 @@ fun TimerScreen(
 
                     // Stop/Reset Button
                     OutlinedButton(
-                        onClick = {
-                            timerState = TimerState.IDLE
-                            timeLeftInSeconds = totalTimeInSeconds
-                        },
+                        onClick = { timerViewModel.resetTimer() },
                         modifier = Modifier
                             .weight(1f)
                             .height(56.dp),
                         shape = RoundedCornerShape(16.dp),
-                        enabled = timerState != TimerState.IDLE,
+                        enabled = uiState.timerState != TimerState.IDLE,
                         colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = WarningOrange
                         ),
@@ -372,7 +354,7 @@ fun TimerScreen(
                     val totalSecs = (mins * 60) + secs
                     
                     if (totalSecs > 0) {
-                        selectedDurationInSeconds = totalSecs
+                        timerViewModel.setDurationInSeconds(totalSecs)
                     }
                     showCustomDialog = false
                 }) {
@@ -400,15 +382,18 @@ fun TimerScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    selectedSound = sound
+                                    timerViewModel.setSelectedSound(sound)
                                     showSoundDialog = false
                                 }
                                 .padding(vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                              RadioButton(
-                                selected = (sound == selectedSound),
-                                onClick = { selectedSound = sound; showSoundDialog = false },
+                                selected = (sound == uiState.selectedSound),
+                                onClick = { 
+                                    timerViewModel.setSelectedSound(sound)
+                                    showSoundDialog = false 
+                                },
                                 colors = RadioButtonDefaults.colors(selectedColor = PrimaryBlue)
                              )
                              Spacer(modifier = Modifier.width(8.dp))

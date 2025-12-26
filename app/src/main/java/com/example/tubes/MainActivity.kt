@@ -16,6 +16,7 @@ import com.example.tubes.ui.screens.RegisterScreen
 import com.example.tubes.ui.screens.SplashScreen
 import com.example.tubes.ui.screens.TimerScreen
 import com.example.tubes.ui.theme.TUBESTheme
+import com.example.tubes.util.NotificationHelper
 import com.google.firebase.auth.FirebaseAuth
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
@@ -24,6 +25,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        
+        // Create notification channel untuk timer notifications
+        NotificationHelper.createNotificationChannel(this)
+        
         setContent {
             TUBESTheme {
                 TaskManagerApp()

@@ -3,8 +3,8 @@ package com.example.tubes.ui.screens
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -14,6 +14,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,6 +34,9 @@ import com.example.tubes.ui.theme.*
 import com.example.tubes.viewmodel.AuthUiState
 import com.example.tubes.viewmodel.AuthViewModel
 
+/**
+ * Clean White Minimalist Profile Screen
+ */
 @Composable
 fun ProfileScreen(
     onLogout: () -> Unit,
@@ -52,9 +58,6 @@ fun ProfileScreen(
             viewModel.updateProfile(name = userName, photoUri = uri)
         }
     }
-
-    // Success/Error Handling (Simple Toast-like effect or logging for now)
-    // Ideally use SnackbarHostState, but for minimal error we'll rely on UI state updates visually
     
     if (showEditNameDialog) {
         EditNameDialog(
@@ -77,25 +80,18 @@ fun ProfileScreen(
         )
     }
 
+    // Clean White Background
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(BackgroundDark)
+            .background(BackgroundLight)
     ) {
-        // Background Decoration
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            drawCircle(
-                color = PrimaryBlue.copy(alpha = 0.15f),
-                radius = 300.dp.toPx(),
-                center = center.copy(x = size.width, y = 0f)
-            )
-        }
-
+        // Loading indicator
         if (authState is AuthUiState.Loading) {
             LinearProgressIndicator(
                 modifier = Modifier.fillMaxWidth(),
                 color = PrimaryBlue,
-                trackColor = SurfaceCard
+                trackColor = DividerGrey
             )
         }
 
@@ -104,135 +100,189 @@ fun ProfileScreen(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(24.dp),
-            verticalArrangement = Arrangement.SpaceBetween,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Header Profile
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally, 
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 40.dp)
+            Spacer(modifier = Modifier.height(40.dp))
+            
+            // ==================== PROFILE PICTURE (CENTERED, LARGE) ====================
+            Box(
+                contentAlignment = Alignment.BottomEnd,
+                modifier = Modifier.size(140.dp)
             ) {
-                // Profile Picture
-                Box(contentAlignment = Alignment.BottomEnd) {
-                    if (userPhotoUrl != null) {
-                        AsyncImage(
-                            model = userPhotoUrl,
-                            contentDescription = "Profile Picture",
-                            modifier = Modifier
-                                .size(120.dp)
-                                .clip(CircleShape)
-                                .clickable { launcher.launch("image/*") },
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Surface(
-                            modifier = Modifier
-                                .size(120.dp)
-                                .clickable { launcher.launch("image/*") },
-                            shape = CircleShape,
-                            color = PrimaryBlue
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Text(
-                                    text = userName.firstOrNull()?.toString()?.uppercase() ?: "U",
-                                    fontSize = 48.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
-                                )
-                            }
-                        }
-                    }
-                    
-                    // Edit Photo Icon
-                    Surface(
-                        shape = CircleShape,
-                        color = SurfaceCard,
+                if (userPhotoUrl != null) {
+                    AsyncImage(
+                        model = userPhotoUrl,
+                        contentDescription = "Profile Picture",
                         modifier = Modifier
-                            .size(36.dp)
-                            .padding(2.dp)
+                            .size(140.dp)
+                            .clip(CircleShape)
+                            .border(3.dp, DividerGrey, CircleShape)
                             .clickable { launcher.launch("image/*") },
-                        border = androidx.compose.foundation.BorderStroke(2.dp, BackgroundDark)
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    // Placeholder with initial
+                    Surface(
+                        modifier = Modifier
+                            .size(140.dp)
+                            .clickable { launcher.launch("image/*") },
+                        shape = CircleShape,
+                        color = PrimaryBlue.copy(alpha = 0.1f)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                Icons.Default.Edit, 
-                                "Edit Photo", 
-                                modifier = Modifier.size(18.dp),
-                                tint = PrimaryBlue
+                            Text(
+                                text = userName.firstOrNull()?.toString()?.uppercase() ?: "U",
+                                fontSize = 56.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = PrimaryBlue
                             )
                         }
                     }
                 }
                 
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                // Name Section
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center,
-                    modifier = Modifier.clickable { showEditNameDialog = true }
+                // Camera/Edit Button
+                Surface(
+                    shape = CircleShape,
+                    color = PrimaryBlue,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clickable { launcher.launch("image/*") },
+                    shadowElevation = 4.dp
                 ) {
-                    Text(
-                        text = userName,
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Icon(
-                        Icons.Default.Edit, 
-                        "Edit Name",
-                        tint = OnSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Default.CameraAlt, 
+                            "Change Photo", 
+                            modifier = Modifier.size(20.dp),
+                            tint = Color.White
+                        )
+                    }
                 }
-                
+            }
+            
+            Spacer(modifier = Modifier.height(32.dp))
+            
+            // ==================== NAME (BLACK SLATE, READABLE) ====================
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.clickable { showEditNameDialog = true }
+            ) {
                 Text(
-                    text = userEmail,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = OnSurfaceVariant.copy(alpha = 0.7f)
+                    text = userName,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Icon(
+                    Icons.Default.Edit, 
+                    "Edit Name",
+                    tint = TextSecondary,
+                    modifier = Modifier.size(18.dp)
                 )
             }
             
-            // Actions Section
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            // ==================== EMAIL (GREY) ====================
+            Text(
+                text = userEmail,
+                fontSize = 16.sp,
+                color = TextSecondary
+            )
+            
+            Spacer(modifier = Modifier.height(48.dp))
+            
+            // ==================== ACTION BUTTONS ====================
             Column(
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                // Change Password Button
-                Button(
-                    onClick = { showChangePasswordDialog = true },
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = SurfaceCard, 
+                // Edit Profile Button
+                OutlinedButton(
+                    onClick = { showEditNameDialog = true },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = PrimaryBlue
                     ),
-                    shape = RoundedCornerShape(16.dp)
+                    border = androidx.compose.foundation.BorderStroke(1.dp, PrimaryBlue)
                 ) {
-                    Icon(Icons.Default.Lock, null, modifier = Modifier.size(20.dp))
+                    Icon(
+                        Icons.Default.Person, 
+                        null, 
+                        modifier = Modifier.size(20.dp)
+                    )
                     Spacer(modifier = Modifier.width(12.dp))
-                    Text("Change Password", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "Edit Profile", 
+                        fontSize = 16.sp, 
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
 
-                // Logout Button
-                Button(
-                    onClick = onLogout,
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = WarningOrange.copy(alpha = 0.15f), 
-                        contentColor = WarningOrange
-                    ),
+                // Change Password Button
+                OutlinedButton(
+                    onClick = { showChangePasswordDialog = true },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
                     shape = RoundedCornerShape(16.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, WarningOrange.copy(alpha = 0.3f))
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = PrimaryBlue
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, PrimaryBlue)
                 ) {
-                    Text("Logout", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Icon(
+                        Icons.Default.Lock, 
+                        null, 
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        "Change Password", 
+                        fontSize = 16.sp, 
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Logout Button - Subtle red outline
+                OutlinedButton(
+                    onClick = onLogout,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = ErrorRed
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, ErrorRed.copy(alpha = 0.5f))
+                ) {
+                    Icon(
+                        Icons.Default.Logout, 
+                        null, 
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        "Logout", 
+                        fontSize = 16.sp, 
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
             }
+            
+            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }
+
+// ==================== DIALOGS ====================
 
 @Composable
 fun EditNameDialog(
@@ -244,34 +294,42 @@ fun EditNameDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Edit Display Name", color = OnBackgroundWhite) },
+        title = { 
+            Text(
+                "Edit Display Name", 
+                color = TextPrimary,
+                fontWeight = FontWeight.SemiBold
+            ) 
+        },
         text = {
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
                 label = { Text("Display Name") },
                 singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = OnBackgroundWhite,
-                    unfocusedTextColor = OnBackgroundWhite,
+                    focusedTextColor = TextPrimary,
+                    unfocusedTextColor = TextPrimary,
                     focusedBorderColor = PrimaryBlue,
-                    unfocusedBorderColor = OnSurfaceVariant
+                    unfocusedBorderColor = DividerGrey,
+                    focusedLabelColor = PrimaryBlue,
+                    unfocusedLabelColor = TextSecondary
                 )
             )
         },
         confirmButton = {
             TextButton(onClick = { onConfirm(name) }) {
-                Text("Save", color = PrimaryBlue)
+                Text("Save", color = PrimaryBlue, fontWeight = FontWeight.SemiBold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = OnSurfaceVariant)
+                Text("Cancel", color = TextSecondary)
             }
         },
-        containerColor = SurfaceCard,
-        titleContentColor = OnBackgroundWhite,
-        textContentColor = OnBackgroundWhite
+        containerColor = SurfaceWhite,
+        shape = RoundedCornerShape(16.dp)
     )
 }
 
@@ -286,7 +344,13 @@ fun ChangePasswordDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Change Password", color = OnBackgroundWhite) },
+        title = { 
+            Text(
+                "Change Password", 
+                color = TextPrimary,
+                fontWeight = FontWeight.SemiBold
+            ) 
+        },
         text = {
             Column {
                 OutlinedTextField(
@@ -295,32 +359,38 @@ fun ChangePasswordDialog(
                     label = { Text("New Password") },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = OnBackgroundWhite,
-                        unfocusedTextColor = OnBackgroundWhite,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
                         focusedBorderColor = PrimaryBlue,
-                        unfocusedBorderColor = OnSurfaceVariant
+                        unfocusedBorderColor = DividerGrey,
+                        focusedLabelColor = PrimaryBlue,
+                        unfocusedLabelColor = TextSecondary
                     )
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 OutlinedTextField(
                     value = confirmPassword,
                     onValueChange = { confirmPassword = it },
-                    label = { Text("Confirm New Password") },
+                    label = { Text("Confirm Password") },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = OnBackgroundWhite,
-                        unfocusedTextColor = OnBackgroundWhite,
-                        focusedBorderColor = PrimaryBlue,
-                        unfocusedBorderColor = OnSurfaceVariant
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = if (errorMessage != null) ErrorRed else PrimaryBlue,
+                        unfocusedBorderColor = if (errorMessage != null) ErrorRed else DividerGrey,
+                        focusedLabelColor = PrimaryBlue,
+                        unfocusedLabelColor = TextSecondary
                     ),
                     isError = errorMessage != null
                 )
                 if (errorMessage != null) {
                     Text(
                         text = errorMessage!!,
-                        color = WarningOrange,
+                        color = ErrorRed,
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(top = 4.dp)
                     )
@@ -337,16 +407,15 @@ fun ChangePasswordDialog(
                     onConfirm(password)
                 }
             }) {
-                Text("Update", color = PrimaryBlue)
+                Text("Update", color = PrimaryBlue, fontWeight = FontWeight.SemiBold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = OnSurfaceVariant)
+                Text("Cancel", color = TextSecondary)
             }
         },
-        containerColor = SurfaceCard,
-        titleContentColor = OnBackgroundWhite,
-        textContentColor = OnBackgroundWhite
+        containerColor = SurfaceWhite,
+        shape = RoundedCornerShape(16.dp)
     )
 }

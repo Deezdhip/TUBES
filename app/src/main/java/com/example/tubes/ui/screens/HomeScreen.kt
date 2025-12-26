@@ -1,10 +1,10 @@
 package com.example.tubes.ui.screens
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -14,15 +14,13 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Delete
 import kotlinx.coroutines.launch
-// Imports removed/added directly in this block replacement is risky if not careful with lines. 
-// I will target the Dashboard import line first.
 
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -35,50 +33,40 @@ import com.example.tubes.viewmodel.TaskUiState
 import com.example.tubes.viewmodel.TaskViewModel
 import com.example.tubes.ui.components.AddTaskDialog
 import com.example.tubes.viewmodel.AuthViewModel
-import com.example.tubes.viewmodel.AuthUiState
-import coil.compose.AsyncImage
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.filled.Edit
 import android.net.Uri
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 
 /**
- * Modern Dashboard HomeScreen
+ * Modern Clean Minimalist HomeScreen
+ * White background dengan Royal Blue accent
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onNavigateToTimer: (String) -> Unit,
-    onNavigateToRecycleBin: () -> Unit, // New parameter
+    onNavigateToRecycleBin: () -> Unit,
     onLogout: () -> Unit,
     viewModel: TaskViewModel = viewModel(),
     authViewModel: AuthViewModel = viewModel(),
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val authState by authViewModel.authState.collectAsState()
     
     var showDialog by remember { mutableStateOf(false) }
-    var showMenu by remember { mutableStateOf(false) } // State for dropdown menu
+    var showMenu by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
     
     val authRepository = remember { AuthRepository() }
-    val userEmail = remember { authRepository.getCurrentUserEmail() ?: "User" }
     val userName = authViewModel.getCurrentUserName() ?: "User"
-    val userPhotoUrl = authViewModel.getCurrentUserPhotoUrl()
     
     var selectedTab by remember { mutableIntStateOf(0) }
     
     val context = LocalContext.current
     
-    // Image Picker (preserved but not currently attached to UI in this version)
+    // Image Picker
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -87,51 +75,54 @@ fun HomeScreen(
         }
     }
 
-
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
     Scaffold(
         topBar = {
-             CenterAlignedTopAppBar(
-                 title = { Text("Task Manager", fontWeight = FontWeight.Bold) },
-                 actions = {
-                     IconButton(onClick = { showMenu = !showMenu }) {
-                         Icon(Icons.Default.List, contentDescription = "More")
-                     }
-                     DropdownMenu(
-                         expanded = showMenu,
-                         onDismissRequest = { showMenu = false }
-                     ) {
-                         DropdownMenuItem(
-                             text = { Text("Recycle Bin") },
-                             onClick = {
-                                 showMenu = false
-                                 onNavigateToRecycleBin()
-                             },
-                             leadingIcon = {
-                                 Icon(Icons.Default.Delete, contentDescription = null)
-                             }
-                         )
-                     }
-                 },
-                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                     containerColor = BackgroundDark,
-                     titleContentColor = Color.White,
-                     actionIconContentColor = Color.White
-                 )
-             )
+            // Clean minimal top bar
+            TopAppBar(
+                title = { },
+                actions = {
+                    IconButton(onClick = { showMenu = !showMenu }) {
+                        Icon(
+                            Icons.Default.List, 
+                            contentDescription = "More",
+                            tint = TextSecondary
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Recycle Bin") },
+                            onClick = {
+                                showMenu = false
+                                onNavigateToRecycleBin()
+                            },
+                            leadingIcon = {
+                                Icon(Icons.Default.Delete, contentDescription = null)
+                            }
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = BackgroundLight,
+                    actionIconContentColor = TextSecondary
+                )
+            )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
-            // Floating Bottom Navigation
+            // Floating Bottom Navigation - Clean White
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp, vertical = 16.dp),
                 shape = RoundedCornerShape(50.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = SurfaceCard
+                    containerColor = SurfaceWhite
                 ),
                 elevation = CardDefaults.cardElevation(8.dp)
             ) {
@@ -139,9 +130,9 @@ fun HomeScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(70.dp)
-                        .padding(horizontal = 16.dp), // Increased padding for better spacing
+                        .padding(horizontal = 16.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween // SpaceBetween works well for 4 items
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     // Home Tab
                     NavigationIcon(
@@ -157,7 +148,7 @@ fun HomeScreen(
                         onClick = { selectedTab = 1 }
                     )
 
-                    // Add Task Action (Inside Navigation)
+                    // Add Task Action - Royal Blue accent
                     Box(
                         modifier = Modifier
                             .size(50.dp)
@@ -183,13 +174,11 @@ fun HomeScreen(
                 }
             }
         },
-        containerColor = BackgroundDark 
+        containerColor = BackgroundLight
     ) { paddingValues ->
-        // Content Switching based on Tab
         Box(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
             when (selectedTab) {
                 0 -> {
-                    // Home Dashboard Logic
                     val state = uiState
                     when (state) {
                         is TaskUiState.Loading -> {
@@ -204,107 +193,129 @@ fun HomeScreen(
                         is TaskUiState.Success -> {
                             val tasks = state.tasks
                             val inProgressTasks = tasks.count { !it.isCompleted }
-                            val visibleTasks = tasks // Show all tasks (repo handles isDeleted)
+                            val visibleTasks = if (searchQuery.isBlank()) {
+                                tasks
+                            } else {
+                                tasks.filter { it.title.contains(searchQuery, ignoreCase = true) }
+                            }
                             
                             LazyColumn(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .background(BackgroundDark)
+                                    .background(BackgroundLight)
                             ) {
-                                // Gradient Header
+                                // ==================== CLEAN HEADER ====================
                                 item {
-                                    Box(
+                                    Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .height(240.dp) // Taller header to accommodate content
-                                            .background(
-                                                brush = Brush.verticalGradient(
-                                                    colors = listOf(
-                                                        PrimaryBlue,
-                                                        PrimaryBlue.copy(alpha = 0.8f)
-                                                    )
-                                                )
-                                            )
+                                            .background(BackgroundLight)
+                                            .padding(horizontal = 24.dp, vertical = 16.dp)
                                     ) {
-                                        // Decorative circles
-                                        Canvas(modifier = Modifier.fillMaxSize()) {
-                                            drawCircle(
-                                                color = Color.White.copy(alpha = 0.1f),
-                                                radius = 100.dp.toPx(),
-                                                center = center.copy(x = size.width - 50.dp.toPx(), y = 50.dp.toPx())
-                                            )
-                                        }
-
-                                        Column(
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .padding(24.dp),
-                                            verticalArrangement = Arrangement.Center
-                                        ) {
-                                            Text(
-                                                text = "Hi, ${userName}!",
-                                                fontSize = 28.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color.White
-                                            )
-                                            Spacer(modifier = Modifier.height(8.dp))
-                                            Text(
-                                                text = "You have ${inProgressTasks} tasks pending",
-                                                fontSize = 16.sp,
-                                                color = Color.White.copy(alpha = 0.9f)
-                                            )
-                                        }
+                                        // Greeting - Large Bold Text
+                                        Text(
+                                            text = "Hi, ${userName}!",
+                                            fontSize = 28.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = TextPrimary
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        // Subtitle - Grey
+                                        Text(
+                                            text = "You have $inProgressTasks tasks pending",
+                                            fontSize = 14.sp,
+                                            color = TextSecondary
+                                        )
                                     }
                                 }
 
-                                // Search Bar Overlap
+                                // ==================== FLOATING SEARCH BAR ====================
                                 item {
-                                    OutlinedTextField(
-                                        value = "",
-                                        onValueChange = {},
+                                    Card(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(horizontal = 24.dp)
-                                            .offset(y = (-30).dp),
-                                        placeholder = { Text("Search tasks...", color = OnSurfaceVariant) },
-                                        leadingIcon = { 
-                                            Icon(Icons.Default.Search, "Search", tint = OnSurfaceVariant) 
-                                        },
+                                            .padding(horizontal = 24.dp, vertical = 8.dp)
+                                            .shadow(
+                                                elevation = 4.dp,
+                                                shape = RoundedCornerShape(50.dp),
+                                                ambientColor = Color.Black.copy(alpha = 0.1f)
+                                            ),
                                         shape = RoundedCornerShape(50.dp),
-                                        colors = OutlinedTextFieldDefaults.colors(
-                                            focusedContainerColor = SurfaceCard,
-                                            unfocusedContainerColor = SurfaceCard,
-                                            focusedBorderColor = PrimaryBlue,
-                                            unfocusedBorderColor = Color.Transparent
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = SurfaceWhite
+                                        )
+                                    ) {
+                                        OutlinedTextField(
+                                            value = searchQuery,
+                                            onValueChange = { searchQuery = it },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            placeholder = { 
+                                                Text(
+                                                    "Search tasks...", 
+                                                    color = TextSecondary
+                                                ) 
+                                            },
+                                            leadingIcon = { 
+                                                Icon(
+                                                    Icons.Default.Search, 
+                                                    "Search", 
+                                                    tint = TextSecondary
+                                                ) 
+                                            },
+                                            shape = RoundedCornerShape(50.dp),
+                                            colors = OutlinedTextFieldDefaults.colors(
+                                                focusedContainerColor = SurfaceWhite,
+                                                unfocusedContainerColor = SurfaceWhite,
+                                                focusedBorderColor = Color.Transparent,
+                                                unfocusedBorderColor = Color.Transparent,
+                                                focusedTextColor = TextPrimary,
+                                                unfocusedTextColor = TextPrimary
+                                            ),
+                                            singleLine = true
+                                        )
+                                    }
+                                }
+
+                                // ==================== SECTION HEADER ====================
+                                item {
+                                    Text(
+                                        text = "Ongoing Tasks",
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = TextPrimary,
+                                        modifier = Modifier.padding(
+                                            horizontal = 24.dp, 
+                                            vertical = 16.dp
                                         )
                                     )
                                 }
 
-                                // Ongoing Tasks Header
-                                item {
-                                    Text(
-                                        text = "Ongoing Tasks",
-                                        fontSize = 20.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = OnBackgroundWhite,
-                                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
-                                    )
-                                }
-
-                                // Task List
+                                // ==================== TASK LIST ====================
                                 if (visibleTasks.isEmpty()) {
                                     item {
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .padding(vertical = 32.dp),
+                                                .padding(vertical = 48.dp),
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Text(
-                                                text = "No tasks yet. Add one!",
-                                                color = OnSurfaceVariant,
-                                                fontSize = 16.sp
-                                            )
+                                            Column(
+                                                horizontalAlignment = Alignment.CenterHorizontally
+                                            ) {
+                                                Text(
+                                                    text = "🎉",
+                                                    fontSize = 48.sp
+                                                )
+                                                Spacer(modifier = Modifier.height(8.dp))
+                                                Text(
+                                                    text = if (searchQuery.isBlank()) 
+                                                        "No tasks yet. Add one!" 
+                                                    else 
+                                                        "No tasks found",
+                                                    color = TextSecondary,
+                                                    fontSize = 16.sp
+                                                )
+                                            }
                                         }
                                     }
                                 } else {
@@ -316,16 +327,14 @@ fun HomeScreen(
                                             task = task,
                                             onClick = { onNavigateToTimer(it.title) },
                                             onCheckClick = { t, isChecked ->
-                                                android.widget.Toast.makeText(context, "Updating status...", android.widget.Toast.LENGTH_SHORT).show()
                                                 viewModel.updateTaskStatus(t.id, isChecked) 
                                             },
                                             onDeleteClick = { t ->
                                                 viewModel.deleteTask(t.id) 
-                                                // Show Undo Snackbar
                                                 scope.launch {
                                                     val result = snackbarHostState.showSnackbar(
-                                                        message = "Tugas dipindahkan ke sampah",
-                                                        actionLabel = "BATAL",
+                                                        message = "Task moved to trash",
+                                                        actionLabel = "UNDO",
                                                         duration = SnackbarDuration.Short
                                                     )
                                                     if (result == SnackbarResult.ActionPerformed) {
@@ -334,8 +343,6 @@ fun HomeScreen(
                                                 }
                                             },
                                             onPinClick = { t ->
-                                                val msg = if (t.isPinned) "Unpinning..." else "Pinning..."
-                                                android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
                                                 viewModel.togglePin(t) 
                                             }
                                         )
@@ -348,28 +355,42 @@ fun HomeScreen(
                             }
                         }
                         
-                         is TaskUiState.Error -> {
+                        is TaskUiState.Error -> {
                             Box(
                                 modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Button(onClick = { viewModel.clearError() }) {
-                                    Text("Retry")
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        text = "Oops! Something went wrong",
+                                        color = TextSecondary
+                                    )
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Button(
+                                        onClick = { viewModel.clearError() },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = PrimaryBlue
+                                        )
+                                    ) {
+                                        Text("Retry")
+                                    }
                                 }
                             }
                         }
                     }
                 }
                 1 -> {
-                     DashboardScreen()
+                    DashboardScreen()
                 }
                 2 -> {
-                     ProfileScreen(
-                         onLogout = {
-                             authRepository.logout()
-                             onLogout()
-                         }
-                     )
+                    ProfileScreen(
+                        onLogout = {
+                            authRepository.logout()
+                            onLogout()
+                        }
+                    )
                 }
             }
         }
@@ -405,7 +426,7 @@ private fun NavigationIcon(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = if (isSelected) PrimaryBlue else OnSurfaceVariant,
+            tint = if (isSelected) PrimaryBlue else TextSecondary,
             modifier = Modifier.size(28.dp)
         )
     }
