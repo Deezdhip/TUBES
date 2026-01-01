@@ -1,12 +1,15 @@
 package com.example.tubes.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.DeleteForever
-import androidx.compose.material.icons.filled.Restore
+import androidx.compose.material.icons.rounded.DeleteForever
+import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.Restore
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -14,6 +17,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -22,6 +27,19 @@ import com.example.tubes.ui.theme.*
 import com.example.tubes.viewmodel.TaskUiState
 import com.example.tubes.viewmodel.TaskViewModel
 
+// Colors for this screen
+private val DangerRed = Color(0xFFFF3B30)
+private val SafeGreen = Color(0xFF34C759)
+
+/**
+ * RecycleBinScreen - Deep Blue Modern Theme
+ * 
+ * Features:
+ * - NavyDeep header with CenterAlignedTopAppBar
+ * - BackgroundLight body
+ * - White task cards with restore/delete actions
+ * - Beautiful empty state
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RecycleBinScreen(
@@ -32,21 +50,29 @@ fun RecycleBinScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Recycle Bin") },
+            CenterAlignedTopAppBar(
+                title = { 
+                    Text(
+                        text = "Recycle Bin",
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    ) 
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateUp) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.Default.ArrowBack, 
+                            contentDescription = "Back",
+                            tint = Color.White
+                        )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = BackgroundDark,
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = NavyDeep
                 )
             )
         },
-        containerColor = BackgroundDark
+        containerColor = Background
     ) { paddingValues ->
         when (val state = deletedTasksState) {
             is TaskUiState.Loading -> {
@@ -56,7 +82,7 @@ fun RecycleBinScreen(
                         .padding(paddingValues),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = PrimaryBlue)
+                    CircularProgressIndicator(color = NavyDeep)
                 }
             }
             
@@ -64,34 +90,45 @@ fun RecycleBinScreen(
                 val deletedTasks = state.tasks
                 
                 if (deletedTasks.isEmpty()) {
-                    Box(
+                    // ==================== EMPTY STATE ====================
+                    EmptyRecycleBinState(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(paddingValues),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Bin is empty",
-                            color = OnSurfaceVariant,
-                            fontSize = 16.sp
-                        )
-                    }
+                            .padding(paddingValues)
+                    )
                 } else {
+                    // ==================== TASK LIST ====================
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(paddingValues),
-                        contentPadding = PaddingValues(16.dp)
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
+                        // Header info
+                        item {
+                            Text(
+                                text = "${deletedTasks.size} deleted task${if (deletedTasks.size > 1) "s" else ""}",
+                                fontSize = 14.sp,
+                                color = TextSecondary,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                        }
+                        
                         items(
                             items = deletedTasks,
                             key = { it.id }
                         ) { task ->
-                            DeletedTaskItem(
+                            TrashedTaskCard(
                                 task = task,
-                                onRestore = { viewModel.restoreTask(task) },
-                                onDeletePermanently = { viewModel.deleteTaskPermanently(task.id) }
+                                onRestoreClick = { viewModel.restoreTask(task) },
+                                onDeleteForeverClick = { viewModel.deleteTaskPermanently(task.id) }
                             )
+                        }
+                        
+                        // Bottom spacing
+                        item {
+                            Spacer(modifier = Modifier.height(16.dp))
                         }
                     }
                 }
@@ -104,16 +141,19 @@ fun RecycleBinScreen(
                         .padding(paddingValues),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
                         Text(
                             text = state.message,
-                            color = WarningOrange,
+                            color = DangerRed,
                             fontSize = 14.sp
                         )
-                        Spacer(modifier = Modifier.height(16.dp))
                         Button(
                             onClick = { viewModel.refresh() },
-                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)
+                            colors = ButtonDefaults.buttonColors(containerColor = NavyDeep),
+                            shape = RoundedCornerShape(12.dp)
                         ) {
                             Text("Retry")
                         }
@@ -124,19 +164,61 @@ fun RecycleBinScreen(
     }
 }
 
+/**
+ * Empty State - Beautiful centered display when bin is empty
+ */
 @Composable
-private fun DeletedTaskItem(
+private fun EmptyRecycleBinState(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Large delete icon
+            Icon(
+                imageVector = Icons.Rounded.DeleteOutline,
+                contentDescription = null,
+                modifier = Modifier.size(80.dp),
+                tint = DividerGrey
+            )
+            
+            // Title
+            Text(
+                text = "No Deleted Tasks",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = NavyDeep
+            )
+            
+            // Subtitle
+            Text(
+                text = "Tasks you delete will appear here",
+                fontSize = 14.sp,
+                color = TextSecondary
+            )
+        }
+    }
+}
+
+/**
+ * Trashed Task Card - White card with task info and action buttons
+ */
+@Composable
+private fun TrashedTaskCard(
     task: Task,
-    onRestore: () -> Unit,
-    onDeletePermanently: () -> Unit
+    onRestoreClick: () -> Unit,
+    onDeleteForeverClick: () -> Unit
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = SurfaceCard.copy(alpha = 0.6f)
-        )
+            containerColor = SurfaceWhite
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
             modifier = Modifier
@@ -144,42 +226,74 @@ private fun DeletedTaskItem(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            // ==================== LEFT: Task Info ====================
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                // Task Title
                 Text(
                     text = task.title,
-                    color = Color.Gray,
-                    style = MaterialTheme.typography.bodyLarge
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = NavyDeep,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
+                
+                // Category Chip
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Background
+                ) {
+                    Text(
+                        text = task.category,
+                        fontSize = 12.sp,
+                        color = TextSecondary,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+                
+                // Due date if available
                 if (task.dueDate != null) {
                     Text(
                         text = "📅 ${com.example.tubes.util.DateUtils.formatDateTime(task.dueDate)}",
-                        color = Color.Gray.copy(alpha = 0.7f),
-                        style = MaterialTheme.typography.bodySmall
+                        fontSize = 12.sp,
+                        color = TextSecondary
                     )
                 }
-                Text(
-                    text = "Deleted",
-                    color = Color.Gray,
-                    style = MaterialTheme.typography.bodySmall
-                )
             }
             
-            // Restore Button
-            IconButton(onClick = onRestore) {
-                Icon(
-                    Icons.Default.Restore, 
-                    contentDescription = "Restore",
-                    tint = SuccessGreen
-                )
-            }
-            
-            // Delete Forever Button
-            IconButton(onClick = onDeletePermanently) {
-                Icon(
-                    Icons.Default.DeleteForever, 
-                    contentDescription = "Delete Forever",
-                    tint = WarningOrange
-                )
+            // ==================== RIGHT: Action Buttons ====================
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Restore Button
+                IconButton(
+                    onClick = onRestoreClick,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Restore,
+                        contentDescription = "Restore",
+                        tint = SafeGreen,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                
+                // Delete Forever Button
+                IconButton(
+                    onClick = onDeleteForeverClick,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.DeleteForever,
+                        contentDescription = "Delete Forever",
+                        tint = DangerRed,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             }
         }
     }

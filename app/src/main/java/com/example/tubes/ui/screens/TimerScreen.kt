@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
@@ -34,6 +35,7 @@ import com.example.tubes.viewmodel.TimerViewModel
 // Cyan/Mint accent color for timer progress
 private val TimerCyan = Color(0xFF00E5FF)
 private val TimerTrack = Color(0xFFE8EDF2)
+private val CompleteGreen = Color(0xFF34C759) // Green for "Selesai" button
 
 /**
  * TimerScreen - Deep Blue Modern Split Layout Design
@@ -303,8 +305,8 @@ fun TimerScreen(
                 horizontalArrangement = Arrangement.spacedBy(24.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Reset Button (small)
-                if (uiState.timerState != TimerState.IDLE) {
+                // Reset Button (small) - only show when timer running/paused and NOT finished
+                if (uiState.timerState != TimerState.IDLE && !uiState.isTimerFinished) {
                     FloatingActionButton(
                         onClick = { timerViewModel.resetTimer() },
                         modifier = Modifier.size(48.dp),
@@ -322,29 +324,64 @@ fun TimerScreen(
                     }
                 }
                 
-                // Play/Pause Button (large FAB)
-                FloatingActionButton(
-                    onClick = { timerViewModel.toggleTimer() },
-                    modifier = Modifier.size(72.dp),
-                    containerColor = NavyDeep,
-                    contentColor = Color.White,
-                    shape = CircleShape,
-                    elevation = FloatingActionButtonDefaults.elevation(
-                        defaultElevation = 8.dp
-                    )
-                ) {
-                    Icon(
-                        imageVector = if (uiState.timerState == TimerState.RUNNING) 
-                            Icons.Default.Pause 
-                        else 
-                            Icons.Default.PlayArrow,
-                        contentDescription = if (uiState.timerState == TimerState.RUNNING) "Pause" else "Start",
-                        modifier = Modifier.size(36.dp)
-                    )
+                // ==================== MAIN FAB ====================
+                // IF timer finished: Show "Selesai" (Complete) button
+                // ELSE: Show Play/Pause button
+                if (uiState.isTimerFinished) {
+                    // ===== SELESAI BUTTON (Green) =====
+                    FloatingActionButton(
+                        onClick = {
+                            timerViewModel.completeTask {
+                                onNavigateBack() // Navigate back after completing
+                            }
+                        },
+                        modifier = Modifier.size(72.dp),
+                        containerColor = CompleteGreen,
+                        contentColor = Color.White,
+                        shape = CircleShape,
+                        elevation = FloatingActionButtonDefaults.elevation(
+                            defaultElevation = 8.dp
+                        )
+                    ) {
+                        if (uiState.isCompletingTask) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(32.dp),
+                                color = Color.White,
+                                strokeWidth = 3.dp
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "Complete Task",
+                                modifier = Modifier.size(36.dp)
+                            )
+                        }
+                    }
+                } else {
+                    // ===== PLAY/PAUSE BUTTON (NavyDeep) =====
+                    FloatingActionButton(
+                        onClick = { timerViewModel.toggleTimer() },
+                        modifier = Modifier.size(72.dp),
+                        containerColor = NavyDeep,
+                        contentColor = Color.White,
+                        shape = CircleShape,
+                        elevation = FloatingActionButtonDefaults.elevation(
+                            defaultElevation = 8.dp
+                        )
+                    ) {
+                        Icon(
+                            imageVector = if (uiState.timerState == TimerState.RUNNING) 
+                                Icons.Default.Pause 
+                            else 
+                                Icons.Default.PlayArrow,
+                            contentDescription = if (uiState.timerState == TimerState.RUNNING) "Pause" else "Start",
+                            modifier = Modifier.size(36.dp)
+                        )
+                    }
                 }
                 
                 // Spacer for symmetry when reset is shown
-                if (uiState.timerState != TimerState.IDLE) {
+                if (uiState.timerState != TimerState.IDLE && !uiState.isTimerFinished) {
                     Spacer(modifier = Modifier.size(48.dp))
                 }
             }

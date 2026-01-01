@@ -31,11 +31,13 @@ data class TimerUiState(
     val selectedDurationInSeconds: Int = 25 * 60,
     val selectedSound: String = "Off",
     val timerCompleted: Boolean = false, // Flag untuk trigger completion event
+    val isTimerFinished: Boolean = false, // Flag untuk menampilkan tombol "Selesai"
     // Task info
     val taskId: String = "",
     val taskTitle: String = "Focus Session",
     val taskCategory: String = "",
-    val isLoadingTask: Boolean = false
+    val isLoadingTask: Boolean = false,
+    val isCompletingTask: Boolean = false // Flag saat proses complete task
 )
 
 /**
@@ -206,11 +208,13 @@ class TimerViewModel : ViewModel() {
     
     /**
      * Called when timer reaches zero
+     * Sets isTimerFinished = true to show "Complete" button
      */
     private fun onTimerFinished() {
         _uiState.value = _uiState.value.copy(
             timerState = TimerState.IDLE,
-            timerCompleted = true
+            timerCompleted = true,
+            isTimerFinished = true // <-- Show "Selesai" button
         )
     }
     
@@ -227,6 +231,62 @@ class TimerViewModel : ViewModel() {
      */
     fun clearCompletionFlag() {
         _uiState.value = _uiState.value.copy(timerCompleted = false)
+    }
+    
+    /**
+     * Complete the current task - Update progress to 100% and mark as completed.
+     * Called when user clicks "Selesai" button after timer finishes.
+     * 
+     * @param onSuccess Callback yang dipanggil setelah task berhasil di-complete
+     */
+    fun completeTask(onSuccess: () -> Unit = {}) {
+        val taskId = _uiState.value.taskId
+        
+        if (taskId.isBlank()) {
+            Log.w(TAG, "Cannot complete task: No taskId available")
+            onSuccess() // Still navigate back even if no task
+            return
+        }
+        
+        _uiState.value = _uiState.value.copy(isCompletingTask = true)
+        
+        viewModelScope.launch {
+            try {
+                // Get current task from repository
+                val currentTask = repository.getTaskById(taskId)
+                
+                if (currentTask != null) {
+                    // Update task to completed with 100% progress
+                    val completedTask = currentTask.copy(
+                        progress = 1.0f,
+                        isCompleted = true
+                    )
+                    repository.updateTask(completedTask)
+                    Log.d(TAG, "Task '${currentTask.title}' marked as completed!")
+                } else {
+                    Log.w(TAG, "Task not found for completion: $taskId")
+                }
+                
+                _uiState.value = _uiState.value.copy(
+                    isCompletingTask = false,
+                    isTimerFinished = false // Reset flag
+                )
+                
+                onSuccess()
+                
+            } catch (e: Exception) {
+                Log.e(TAG, "Error completing task", e)
+                _uiState.value = _uiState.value.copy(isCompletingTask = false)
+                onSuccess() // Navigate back anyway
+            }
+        }
+    }
+    
+    /**
+     * Reset timer finished state (for restarting)
+     */
+    fun resetTimerFinished() {
+        _uiState.value = _uiState.value.copy(isTimerFinished = false)
     }
     
     /**
