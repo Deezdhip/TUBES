@@ -52,6 +52,27 @@ class TaskRepository {
         return document.toObject(Task::class.java)?.copy(id = document.id)
     }
 
+    /**
+     * Mendapatkan task berdasarkan ID dokumen.
+     * 
+     * @param taskId ID dokumen task di Firestore
+     * @return Task object atau null jika tidak ditemukan
+     */
+    suspend fun getTaskById(taskId: String): Task? {
+        return try {
+            if (taskId.isBlank()) return null
+            
+            val document = tasksCollection.document(taskId).get().await()
+            if (document.exists()) {
+                documentToTask(document)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     // ==================== READ OPERATIONS ====================
 
     /**

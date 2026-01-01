@@ -96,10 +96,9 @@ fun TaskManagerApp() {
         // Route untuk HomeScreen (Dashboard)
         composable("home") {
             HomeScreen(
-                onNavigateToTimer = { taskTitle ->
-                    // Encode taskTitle untuk menghindari masalah dengan special characters
-                    val encodedTitle = java.net.URLEncoder.encode(taskTitle, StandardCharsets.UTF_8.toString())
-                    navController.navigate("timer/$encodedTitle")
+                onNavigateToTimer = { taskId ->
+                    // Navigate dengan Task ID
+                    navController.navigate("timer/$taskId")
                 },
                 onNavigateToRecycleBin = {
                     navController.navigate("recycle_bin")
@@ -122,19 +121,18 @@ fun TaskManagerApp() {
              )
         }
 
-        // Route untuk TimerScreen dengan argument
+        // Route untuk TimerScreen dengan Task ID argument
         composable(
-            route = "timer/{taskTitle}",
+            route = "timer/{taskId}",
             arguments = listOf(
-                navArgument("taskTitle") {
+                navArgument("taskId") {
                     type = NavType.StringType
                 }
             )
         ) { backStackEntry ->
-            val encodedTitle = backStackEntry.arguments?.getString("taskTitle") ?: ""
-            val taskTitle = URLDecoder.decode(encodedTitle, StandardCharsets.UTF_8.toString())
+            val taskId = backStackEntry.arguments?.getString("taskId") ?: ""
             TimerScreen(
-                taskTitle = taskTitle,
+                taskId = taskId,
                 onNavigateBack = {
                     navController.popBackStack()
                 }

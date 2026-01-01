@@ -1,8 +1,11 @@
 package com.example.tubes.viewmodel
 
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.tubes.model.Task
+import com.example.tubes.repository.TaskRepository
 import com.example.tubes.util.NotificationHelper
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -27,7 +30,12 @@ data class TimerUiState(
     val totalTimeInSeconds: Int = 25 * 60,
     val selectedDurationInSeconds: Int = 25 * 60,
     val selectedSound: String = "Off",
-    val timerCompleted: Boolean = false // Flag untuk trigger completion event
+    val timerCompleted: Boolean = false, // Flag untuk trigger completion event
+    // Task info
+    val taskId: String = "",
+    val taskTitle: String = "Focus Session",
+    val taskCategory: String = "",
+    val isLoadingTask: Boolean = false
 )
 
 /**
@@ -38,6 +46,7 @@ data class TimerUiState(
  * - Timer countdown dengan coroutine
  * - Proper cleanup dengan onCleared()
  * - Timer completion event untuk vibrate/notifikasi
+ * - Load task by ID for task-specific timer
  */
 class TimerViewModel : ViewModel() {
     
@@ -45,11 +54,54 @@ class TimerViewModel : ViewModel() {
         private const val TAG = "TimerViewModel"
     }
     
+    private val repository = TaskRepository()
+    
     private val _uiState = MutableStateFlow(TimerUiState())
     val uiState: StateFlow<TimerUiState> = _uiState.asStateFlow()
     
     // Job untuk timer coroutine - akan di-cancel saat ViewModel dihancurkan
     private var timerJob: Job? = null
+    
+    /**
+     * Load task by ID dari repository
+     * Akan mengisi taskTitle dan taskCategory di UI state
+     */
+    fun loadTask(taskId: String) {
+        if (taskId.isBlank()) {
+            Log.d(TAG, "No taskId provided, using default Focus Session")
+            return
+        }
+        
+        _uiState.value = _uiState.value.copy(
+            taskId = taskId,
+            isLoadingTask = true
+        )
+        
+        viewModelScope.launch {
+            try {
+                repository.getTaskById(taskId)?.let { task ->
+                    Log.d(TAG, "Loaded task: ${task.title}")
+                    _uiState.value = _uiState.value.copy(
+                        taskTitle = task.title,
+                        taskCategory = task.category,
+                        isLoadingTask = false
+                    )
+                } ?: run {
+                    Log.w(TAG, "Task not found with id: $taskId")
+                    _uiState.value = _uiState.value.copy(
+                        taskTitle = "Focus Session",
+                        isLoadingTask = false
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading task", e)
+                _uiState.value = _uiState.value.copy(
+                    taskTitle = "Focus Session",
+                    isLoadingTask = false
+                )
+            }
+        }
+    }
     
     /**
      * Set durasi timer dalam menit

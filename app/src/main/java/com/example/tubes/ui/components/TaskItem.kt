@@ -6,9 +6,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Computer
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Work
 import androidx.compose.material3.*
@@ -80,7 +82,7 @@ fun TaskItem(
                 .fillMaxSize()
                 .padding(16.dp)
         ) {
-            // ==================== TOP ROW: DATE + MENU ====================
+            // ==================== TOP ROW: CHECKMARK + DATE + MENU ====================
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -88,15 +90,40 @@ fun TaskItem(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Date
-                Text(
-                    text = DateUtils.formatDateOnly(task.dueDate) 
-                        ?: DateUtils.formatDateOnly(task.timestamp) 
-                        ?: "",
-                    fontSize = 11.sp,
-                    color = TextOnBlue.copy(alpha = 0.7f),
-                    fontWeight = FontWeight.Medium
-                )
+                // Left side: Checkmark + Date
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Quick Complete Checkmark Button
+                    IconButton(
+                        onClick = { 
+                            Log.d(TAG, "Checkmark clicked: ${task.title}")
+                            onCheckClick(task, !task.isCompleted) 
+                        },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isTaskDone) 
+                                Icons.Default.CheckCircle 
+                            else 
+                                Icons.Default.RadioButtonUnchecked,
+                            contentDescription = if (isTaskDone) "Mark Incomplete" else "Mark Complete",
+                            tint = if (isTaskDone) SuccessGreen else TextOnBlue.copy(alpha = 0.5f),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    
+                    // Date
+                    Text(
+                        text = DateUtils.formatDateOnly(task.dueDate) 
+                            ?: DateUtils.formatDateOnly(task.timestamp) 
+                            ?: "",
+                        fontSize = 11.sp,
+                        color = TextOnBlue.copy(alpha = 0.7f),
+                        fontWeight = FontWeight.Medium
+                    )
+                }
                 
                 // Menu Button
                 Box {

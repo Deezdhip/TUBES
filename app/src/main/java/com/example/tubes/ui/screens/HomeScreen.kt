@@ -285,9 +285,9 @@ fun HomeScreen(
                                     ) { task ->
                                         TaskItem(
                                             task = task,
-                                            // Klik Card = Toggle status (update isCompleted + progress)
+                                            // Klik Card = Navigasi ke Timer Screen dengan Task ID
                                             onClick = { t -> 
-                                                viewModel.toggleTaskStatus(t)
+                                                onNavigateToTimer(t.id)
                                             },
                                             // Menu: Mark Complete/Incomplete = Toggle status
                                             onCheckClick = { t, _ ->
@@ -302,7 +302,7 @@ fun HomeScreen(
                                                         duration = SnackbarDuration.Short
                                                     )
                                                     if (result == SnackbarResult.ActionPerformed) {
-                                                        viewModel.restoreTask(t)
+                                                        viewModel.undoDelete()
                                                     }
                                                 }
                                             },
@@ -350,9 +350,9 @@ fun HomeScreen(
                     DashboardScreen()
                 }
                 2 -> {
-                    // Timer Screen - user must select a task first
+                    // Timer Screen - generic focus session (no specific task)
                     TimerScreen(
-                        taskTitle = "Focus Session",
+                        taskId = "", // Empty = generic Focus Session
                         onNavigateBack = { selectedTab = 0 }
                     )
                 }

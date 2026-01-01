@@ -8,8 +8,12 @@ import com.example.tubes.repository.TaskRepository
 import com.example.tubes.util.DateUtils
 import com.example.tubes.util.Resource
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 // ==================== UI STATE ====================
@@ -38,8 +42,8 @@ sealed class TaskUiState {
 
 /**
  * ViewModel untuk mengelola state dan logic Task.
- * Menggunakan StateFlow untuk reactive UI updates.
- * Implementasi Clean Architecture dengan Optimistic Updates.
+ * Menggunakan StateFlow + combine untuk reactive UI updates dengan INSTANT DELETE.
+ * Implementasi Clean Architecture dengan Optimistic Updates via Temporary Hidden List.
  */
 class TaskViewModel : ViewModel() {
     
@@ -51,13 +55,51 @@ class TaskViewModel : ViewModel() {
     
     private val repository = TaskRepository()
 
+    // ==================== INSTANT DELETE: TEMPORARY HIDDEN LIST ====================
+    
+    /**
+     * Set ID tugas yang disembunyikan secara LOKAL (belum sync ke server).
+     * Digunakan untuk INSTANT optimistic delete - task hilang 0 detik.
+     */
+    private val _instantlyHiddenIds = MutableStateFlow<Set<String>>(emptySet())
+    
+    /**
+     * Task yang baru saja dihapus (untuk Undo functionality)
+     */
+    private val _lastDeletedTask = MutableStateFlow<Task?>(null)
+    val lastDeletedTask: StateFlow<Task?> = _lastDeletedTask.asStateFlow()
+
     // ==================== STATE FLOWS ====================
     
     /**
-     * StateFlow untuk menampung UI state tasks utama
+     * StateFlow untuk menampung raw data dari repository
      */
-    private val _uiState = MutableStateFlow<TaskUiState>(TaskUiState.Loading)
-    val uiState: StateFlow<TaskUiState> = _uiState.asStateFlow()
+    private val _rawTasksState = MutableStateFlow<TaskUiState>(TaskUiState.Loading)
+    
+    /**
+     * COMBINED UI STATE: Menggabungkan data dari DB + filter hidden IDs.
+     * Task yang ada di _instantlyHiddenIds akan LANGSUNG hilang dari UI.
+     */
+    val uiState: StateFlow<TaskUiState> = combine(
+        _rawTasksState,
+        _instantlyHiddenIds
+    ) { rawState, hiddenIds ->
+        when (rawState) {
+            is TaskUiState.Loading -> TaskUiState.Loading
+            is TaskUiState.Error -> rawState
+            is TaskUiState.Success -> {
+                val filteredTasks = rawState.tasks
+                    .filter { !it.isDeleted }           // 1. Filter yang sudah resmi dihapus di DB
+                    .filter { it.id !in hiddenIds }     // 2. Filter yang BARU SAJA dihapus (Local/Instant)
+                    .sortedWith(taskComparator)
+                TaskUiState.Success(filteredTasks)
+            }
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = TaskUiState.Loading
+    )
 
     /**
      * StateFlow untuk menampung deleted tasks (Recycle Bin)
@@ -83,7 +125,7 @@ class TaskViewModel : ViewModel() {
      * 5. timestamp (desc) - Terbaru di atas
      */
     private val taskComparator: Comparator<Task> = compareByDescending<Task> { it.isPinned }
-        .thenByDescending { !it.isCompleted && DateUtils.isOverdue(it.dueDate) } // Overdue di atas
+        .thenByDescending { !it.isCompleted && DateUtils.isOverdue(it.dueDate) }
         .thenBy { it.isCompleted }
         .thenBy(nullsLast()) { it.dueDate }
         .thenByDescending { it.timestamp }
@@ -103,13 +145,19 @@ class TaskViewModel : ViewModel() {
             repository.getTasks().collect { resource ->
                 when (resource) {
                     is Resource.Loading -> {
-                        _uiState.value = TaskUiState.Loading
+                        _rawTasksState.value = TaskUiState.Loading
                     }
                     is Resource.Success -> {
-                        _uiState.value = TaskUiState.Success(resource.data ?: emptyList())
+                        val tasks = resource.data ?: emptyList()
+                        _rawTasksState.value = TaskUiState.Success(tasks)
+                        
+                        // PENTING: Clear hidden IDs yang sudah ter-sync ke server
+                        // Jika task sudah isDeleted=true di server, hapus dari hidden list
+                        val deletedIds = tasks.filter { it.isDeleted }.map { it.id }.toSet()
+                        _instantlyHiddenIds.value = _instantlyHiddenIds.value - deletedIds
                     }
                     is Resource.Error -> {
-                        _uiState.value = TaskUiState.Error(resource.message ?: "Terjadi kesalahan")
+                        _rawTasksState.value = TaskUiState.Error(resource.message ?: "Terjadi kesalahan")
                     }
                 }
             }
@@ -142,11 +190,6 @@ class TaskViewModel : ViewModel() {
 
     /**
      * Menambahkan task baru dengan parameter lengkap
-     * 
-     * @param title Judul task
-     * @param priority Prioritas: Low, Medium, High
-     * @param category Kategori: Work, Study, Personal, Others
-     * @param dueDate Deadline dalam milliseconds (nullable)
      */
     fun addTask(title: String, priority: String, category: String, dueDate: Long?) {
         if (title.isBlank()) {
@@ -159,7 +202,6 @@ class TaskViewModel : ViewModel() {
             try {
                 Log.d(TAG, "Adding task: $title, priority: $priority, category: $category, due: $dueDate")
                 repository.addTask(title, priority, category, dueDate)
-                // State akan otomatis update via real-time listener
             } catch (e: Exception) {
                 Log.e(TAG, "Error adding task", e)
                 _errorMessage.value = e.message ?: "Gagal menambahkan task"
@@ -169,8 +211,6 @@ class TaskViewModel : ViewModel() {
 
     /**
      * Menambahkan task baru dengan Task object
-     * 
-     * @param task Task object yang akan ditambahkan
      */
     fun addTask(task: Task) {
         if (task.title.isBlank()) {
@@ -192,71 +232,55 @@ class TaskViewModel : ViewModel() {
 
     /**
      * Mengupdate status penyelesaian task dengan Optimistic Update
-     * UI diupdate langsung, kemudian sync ke server.
-     * Jika gagal, state akan di-rollback.
-     * 
-     * @param taskId ID task yang akan diupdate
-     * @param isCompleted Status baru
      */
     fun updateTaskStatus(taskId: String, isCompleted: Boolean) {
-        val currentState = _uiState.value
+        val currentState = _rawTasksState.value
         if (currentState !is TaskUiState.Success) return
         
         val originalList = currentState.tasks
         
-        // Step 1: Optimistic Update - Update UI terlebih dahulu
+        // Optimistic Update
         val updatedList = originalList.map { task ->
             if (task.id == taskId) task.copy(isCompleted = isCompleted) else task
-        }.sortedWith(taskComparator)
+        }
         
-        _uiState.value = TaskUiState.Success(updatedList)
+        _rawTasksState.value = TaskUiState.Success(updatedList)
         Log.d(TAG, "Optimistic Update: Status changed for $taskId to $isCompleted")
 
-        // Step 2: Sync ke Server
         viewModelScope.launch {
             try {
                 repository.updateTaskStatus(taskId, isCompleted)
-                // Success - state sudah benar dari optimistic update
             } catch (e: Exception) {
-                // Step 3: Rollback jika gagal
                 Log.e(TAG, "Sync Failed, Rolling back", e)
-                _uiState.value = TaskUiState.Success(originalList)
+                _rawTasksState.value = TaskUiState.Success(originalList)
                 _errorMessage.value = "Gagal mengupdate status: ${e.message}"
             }
         }
     }
 
     /**
-     * TOGGLE TASK STATUS (COMPLETE SOLUTION)
-     * Update BOTH isCompleted AND progress:
-     * - Jika belum selesai -> isCompleted=true, progress=1.0
-     * - Jika sudah selesai -> isCompleted=false, progress=0.0
-     * 
-     * @param task Task yang akan di-toggle statusnya
+     * TOGGLE TASK STATUS dengan Optimistic Update
      */
     fun toggleTaskStatus(task: Task) {
-        val currentState = _uiState.value
+        val currentState = _rawTasksState.value
         if (currentState !is TaskUiState.Success) return
         
         val originalList = currentState.tasks
-        
-        // Toggle status: jika selesai -> belum, jika belum -> selesai
         val newStatus = !task.isCompleted
         val newProgress = if (newStatus) 1.0f else 0.0f
         
         Log.d(TAG, "Toggling task '${task.title}': isCompleted $newStatus, progress $newProgress")
         
-        // Step 1: Optimistic Update
+        // Optimistic Update
         val updatedList = originalList.map { t ->
             if (t.id == task.id) t.copy(
                 isCompleted = newStatus,
                 progress = newProgress
             ) else t
-        }.sortedWith(taskComparator)
+        }
         
-        _uiState.value = TaskUiState.Success(updatedList)
+        _rawTasksState.value = TaskUiState.Success(updatedList)
 
-        // Step 2: Sync ke Firebase
         viewModelScope.launch {
             try {
                 val updatedTask = task.copy(
@@ -266,9 +290,8 @@ class TaskViewModel : ViewModel() {
                 repository.updateTask(updatedTask)
                 Log.d(TAG, "Task updated in Firebase: ${task.title}")
             } catch (e: Exception) {
-                // Step 3: Rollback jika gagal
                 Log.e(TAG, "Toggle failed, rolling back", e)
-                _uiState.value = TaskUiState.Success(originalList)
+                _rawTasksState.value = TaskUiState.Success(originalList)
                 _errorMessage.value = "Gagal mengupdate task: ${e.message}"
             }
         }
@@ -276,79 +299,114 @@ class TaskViewModel : ViewModel() {
 
     /**
      * Toggle status pin task dengan Optimistic Update
-     * UI diupdate langsung, kemudian sync ke server.
-     * Jika gagal, state akan di-rollback.
-     *
-     * @param task Task yang akan dipin/unpin
      */
     fun togglePin(task: Task) {
-        val currentState = _uiState.value
+        val currentState = _rawTasksState.value
         if (currentState !is TaskUiState.Success) return
         
         val originalList = currentState.tasks
         val newPinStatus = !task.isPinned
         
-        // Step 1: Optimistic Update dengan client-side sort
+        // Optimistic Update
         val updatedList = originalList.map { t ->
             if (t.id == task.id) t.copy(isPinned = newPinStatus) else t
-        }.sortedWith(taskComparator)
+        }
         
-        _uiState.value = TaskUiState.Success(updatedList)
+        _rawTasksState.value = TaskUiState.Success(updatedList)
         Log.d(TAG, "Optimistic Update: Pin changed for ${task.id} to $newPinStatus")
 
-        // Step 2: Sync ke Server
         viewModelScope.launch {
             try {
                 repository.togglePin(task.id, newPinStatus)
-                // Success - state sudah benar dari optimistic update
             } catch (e: Exception) {
-                // Step 3: Rollback jika gagal
                 Log.e(TAG, "Sync Failed, Rolling back", e)
-                _uiState.value = TaskUiState.Success(originalList)
+                _rawTasksState.value = TaskUiState.Success(originalList)
                 _errorMessage.value = "Gagal mengubah pin: ${e.message}"
             }
         }
     }
 
-    // ==================== DELETE OPERATIONS ====================
+    // ==================== DELETE OPERATIONS (INSTANT) ====================
 
     /**
-     * Soft delete - Memindahkan task ke recycle bin
+     * INSTANT DELETE - Memindahkan task ke recycle bin dengan 0 DETIK delay.
+     * Menggunakan Temporary Hidden List pattern.
+     * 
+     * LANGKAH 1: Sembunyikan visual seketika (Optimistic via _instantlyHiddenIds)
+     * LANGKAH 2: Kirim perintah ke server (Background)
      * 
      * @param taskId ID task yang akan dipindahkan ke recycle bin
      */
     fun deleteTask(taskId: String) {
-        val currentState = _uiState.value
-        if (currentState !is TaskUiState.Success) return
-        
-        val originalList = currentState.tasks
-        
-        // Optimistic Update - hapus dari list
-        val updatedList = originalList.filter { it.id != taskId }
-        _uiState.value = TaskUiState.Success(updatedList)
-
         viewModelScope.launch {
+            // LANGKAH 1: Sembunyikan visual SEKETIKA (0 detik)
+            _instantlyHiddenIds.value = _instantlyHiddenIds.value + taskId
+            Log.d(TAG, "INSTANT DELETE: Task $taskId hidden immediately")
+            
+            // Simpan task untuk Undo
+            val currentState = _rawTasksState.value
+            if (currentState is TaskUiState.Success) {
+                _lastDeletedTask.value = currentState.tasks.find { it.id == taskId }
+            }
+
+            // LANGKAH 2: Kirim perintah ke server (Background)
             try {
                 repository.softDeleteTask(taskId)
+                Log.d(TAG, "Task $taskId successfully synced to trash in Firebase")
             } catch (e: Exception) {
-                // Rollback
-                Log.e(TAG, "Soft delete failed", e)
-                _uiState.value = TaskUiState.Success(originalList)
+                // Rollback: Munculkan kembali jika gagal sync
+                Log.e(TAG, "Sync to trash failed, rolling back", e)
+                _instantlyHiddenIds.value = _instantlyHiddenIds.value - taskId
                 _errorMessage.value = "Gagal menghapus task: ${e.message}"
             }
         }
     }
 
     /**
-     * Mengembalikan task dari recycle bin
+     * INSTANT DELETE dengan Task object.
+     * Alias untuk deleteTask(taskId).
      * 
-     * @param task Task yang akan dikembalikan
+     * @param task Task yang akan dipindahkan ke recycle bin
+     */
+    fun moveToTrash(task: Task) {
+        deleteTask(task.id)
+    }
+
+    /**
+     * UNDO DELETE - Membatalkan penghapusan yang baru saja dilakukan.
+     * Mengembalikan task ke list aktif.
+     * 
+     * @param task Task yang akan di-restore (atau null untuk restore lastDeletedTask)
+     */
+    fun undoDelete(task: Task? = null) {
+        val taskToRestore = task ?: _lastDeletedTask.value ?: return
+        
+        viewModelScope.launch {
+            // LANGKAH 1: Munculkan kembali di visual (hapus dari hidden list)
+            _instantlyHiddenIds.value = _instantlyHiddenIds.value - taskToRestore.id
+            Log.d(TAG, "UNDO DELETE: Task ${taskToRestore.id} restored to view")
+            
+            // LANGKAH 2: Restore di server
+            try {
+                repository.restoreTask(taskToRestore.id)
+                _lastDeletedTask.value = null
+                Log.d(TAG, "Task ${taskToRestore.id} successfully restored in Firebase")
+            } catch (e: Exception) {
+                Log.e(TAG, "Restore failed", e)
+                // Jika gagal restore, sembunyikan lagi
+                _instantlyHiddenIds.value = _instantlyHiddenIds.value + taskToRestore.id
+                _errorMessage.value = "Gagal membatalkan hapus: ${e.message}"
+            }
+        }
+    }
+
+    /**
+     * Mengembalikan task dari recycle bin (untuk RecycleBinScreen)
      */
     fun restoreTask(task: Task) {
         viewModelScope.launch {
             try {
                 repository.restoreTask(task.id)
-                // State akan diupdate via real-time listener
             } catch (e: Exception) {
                 Log.e(TAG, "Restore failed", e)
                 _errorMessage.value = "Gagal memulihkan task: ${e.message}"
@@ -357,16 +415,14 @@ class TaskViewModel : ViewModel() {
     }
 
     /**
-     * Menghapus task secara permanen
-     * 
-     * @param taskId ID task yang akan dihapus permanen
+     * Menghapus task secara permanen dari Recycle Bin
      */
     fun deleteTaskPermanently(taskId: String) {
         val currentState = _deletedTasksState.value
         if (currentState is TaskUiState.Success) {
             val originalList = currentState.tasks
             
-            // Optimistic Update
+            // Optimistic Update untuk recycle bin
             val updatedList = originalList.filter { it.id != taskId }
             _deletedTasksState.value = TaskUiState.Success(updatedList)
 
@@ -374,7 +430,6 @@ class TaskViewModel : ViewModel() {
                 try {
                     repository.deleteTaskPermanently(taskId)
                 } catch (e: Exception) {
-                    // Rollback
                     Log.e(TAG, "Permanent delete failed", e)
                     _deletedTasksState.value = TaskUiState.Success(originalList)
                     _errorMessage.value = "Gagal menghapus permanen: ${e.message}"
@@ -390,7 +445,7 @@ class TaskViewModel : ViewModel() {
      */
     fun clearError() {
         _errorMessage.value = null
-        val currentState = _uiState.value
+        val currentState = _rawTasksState.value
         if (currentState is TaskUiState.Error) {
             loadTasks()
         }
@@ -401,6 +456,13 @@ class TaskViewModel : ViewModel() {
      */
     fun dismissError() {
         _errorMessage.value = null
+    }
+
+    /**
+     * Clear last deleted task (setelah snackbar hilang)
+     */
+    fun clearLastDeletedTask() {
+        _lastDeletedTask.value = null
     }
 
     /**

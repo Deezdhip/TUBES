@@ -21,6 +21,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -39,8 +40,9 @@ import com.example.tubes.viewmodel.TaskUiState
 
 /**
  * Modern Project Manager Style - ProfileScreen
- * Deep Blue curved header dengan stats dan categories
+ * Clean Background dengan NavyDeep Profile Card
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
     onLogout: () -> Unit,
@@ -102,45 +104,61 @@ fun ProfileScreen(
         )
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Background)
-    ) {
+    // ==================== MAIN CONTAINER (Clean Background) ====================
+    Scaffold(
+        containerColor = Background,
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        text = "Profile",
+                        fontWeight = FontWeight.Bold,
+                        color = NavyDeep
+                    )
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = Background
+                )
+            )
+        }
+    ) { paddingValues ->
         // Loading indicator
         if (authState is AuthUiState.Loading) {
             LinearProgressIndicator(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().zIndex(10f),
                 color = AccentBlue,
                 trackColor = DividerGrey
             )
         }
         
+        // ==================== SCROLLABLE CONTENT ====================
         Column(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // ==================== CURVED NAVY HEADER (40%) ====================
-            Box(
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // ==================== PROFILE CARD (NavyDeep) ====================
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight(0.42f)
-                    .background(
-                        color = NavyDeep,
-                        shape = RoundedCornerShape(
-                            bottomStart = 32.dp,
-                            bottomEnd = 32.dp
-                        )
-                    )
+                    .padding(horizontal = 16.dp),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = NavyDeep
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
             ) {
                 Column(
                     modifier = Modifier
-                        .fillMaxSize()
+                        .fillMaxWidth()
                         .padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Spacer(modifier = Modifier.height(24.dp))
-                    
-                    // Profile Picture
+                    // Profile Picture (100.dp, Circle)
                     Box(
                         contentAlignment = Alignment.BottomEnd,
                         modifier = Modifier.size(100.dp)
@@ -152,7 +170,7 @@ fun ProfileScreen(
                                 modifier = Modifier
                                     .size(100.dp)
                                     .clip(CircleShape)
-                                    .border(3.dp, TextOnBlue.copy(alpha = 0.3f), CircleShape)
+                                    .border(3.dp, Color.White.copy(alpha = 0.3f), CircleShape)
                                     .clickable { launcher.launch("image/*") },
                                 contentScale = ContentScale.Crop
                             )
@@ -163,14 +181,14 @@ fun ProfileScreen(
                                     .size(100.dp)
                                     .clickable { launcher.launch("image/*") },
                                 shape = CircleShape,
-                                color = AccentBlue.copy(alpha = 0.3f)
+                                color = Color.White.copy(alpha = 0.2f)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Text(
                                         text = userName.firstOrNull()?.toString()?.uppercase() ?: "U",
                                         fontSize = 40.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = TextOnBlue
+                                        color = Color.White
                                     )
                                 }
                             }
@@ -190,7 +208,7 @@ fun ProfileScreen(
                                     Icons.Default.CameraAlt, 
                                     "Change Photo", 
                                     modifier = Modifier.size(16.dp),
-                                    tint = TextOnBlue
+                                    tint = Color.White
                                 )
                             }
                         }
@@ -198,63 +216,76 @@ fun ProfileScreen(
                     
                     Spacer(modifier = Modifier.height(16.dp))
                     
-                    // Name (White, Large)
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center,
-                        modifier = Modifier.clickable { showEditNameDialog = true }
-                    ) {
-                        Text(
-                            text = userName,
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TextOnBlue
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Icon(
-                            Icons.Default.Edit, 
-                            "Edit Name",
-                            tint = TextOnBlue.copy(alpha = 0.7f),
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                    
-                    // Role/Email (White, Small)
+                    // Name (White, Bold)
                     Text(
-                        text = "UI/UX Designer", // Could be dynamic
-                        fontSize = 14.sp,
-                        color = TextOnBlue.copy(alpha = 0.7f)
+                        text = userName,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
                     )
                     
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     
-                    // ==================== STATS ROW ====================
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
+                    // Email (White with transparency)
+                    Text(
+                        text = userEmail,
+                        fontSize = 14.sp,
+                        color = Color.White.copy(alpha = 0.7f)
+                    )
+                    
+                    Spacer(modifier = Modifier.height(20.dp))
+                    
+                    // Edit Profile Button (White Outline)
+                    OutlinedButton(
+                        onClick = { showEditNameDialog = true },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = Color.White
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White)
                     ) {
-                        StatItem(
-                            value = totalTasks.toString(),
-                            label = "Total Tasks"
+                        Icon(
+                            Icons.Default.Edit,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
                         )
-                        StatItem(
-                            value = completedTasks.toString(),
-                            label = "Completed"
-                        )
-                        StatItem(
-                            value = pendingTasks.toString(),
-                            label = "Pending"
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Edit Profile",
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
             }
             
-            // ==================== BODY CONTENT ====================
-            Column(
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            // ==================== STATS ROW (Modern Styling) ====================
+            Row(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(24.dp)
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                ModernStatItem(
+                    value = totalTasks.toString(),
+                    label = "Total"
+                )
+                ModernStatItem(
+                    value = completedTasks.toString(),
+                    label = "Completed"
+                )
+                ModernStatItem(
+                    value = pendingTasks.toString(),
+                    label = "Pending"
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(32.dp))
+            
+            // ==================== CATEGORIES SECTION ====================
+            Column(
+                modifier = Modifier.padding(horizontal = 24.dp)
             ) {
                 // Categories Header
                 Row(
@@ -315,10 +346,14 @@ fun ProfileScreen(
                         modifier = Modifier.weight(1f)
                     )
                 }
-                
-                Spacer(modifier = Modifier.height(32.dp))
-                
-                // ==================== ACTION BUTTONS ====================
+            }
+            
+            Spacer(modifier = Modifier.height(32.dp))
+            
+            // ==================== SETTINGS SECTION ====================
+            Column(
+                modifier = Modifier.padding(horizontal = 24.dp)
+            ) {
                 Text(
                     text = "Settings",
                     fontSize = 18.sp,
@@ -386,10 +421,10 @@ fun ProfileScreen(
 }
 
 /**
- * Stats item for profile header
+ * Modern Stats item with large blue numbers
  */
 @Composable
-private fun StatItem(
+private fun ModernStatItem(
     value: String,
     label: String
 ) {
@@ -398,14 +433,14 @@ private fun StatItem(
     ) {
         Text(
             text = value,
-            fontSize = 24.sp,
+            fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
-            color = TextOnBlue
+            color = AccentBlue
         )
         Text(
             text = label,
             fontSize = 12.sp,
-            color = TextOnBlue.copy(alpha = 0.7f)
+            color = TextSecondary
         )
     }
 }
