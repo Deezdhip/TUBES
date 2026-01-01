@@ -54,4 +54,19 @@ object DateUtils {
         if (timestamp == null) return false
         return timestamp < System.currentTimeMillis()
     }
+    
+    /**
+     * Formats a timestamp to date only format.
+     * Format: "MMM dd, yyyy" (e.g., "May 30, 2022")
+     * 
+     * @param timestamp The timestamp to format. Can be null.
+     * @return Formatted date string or null if timestamp is null.
+     */
+    fun formatDateOnly(timestamp: Long?): String? {
+        if (timestamp == null) return null
+        
+        val date = Date(timestamp)
+        val format = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+        return format.format(date)
+    }
 }

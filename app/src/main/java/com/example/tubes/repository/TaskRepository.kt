@@ -106,6 +106,49 @@ class TaskRepository {
     }
 
     /**
+     * UNTUK DASHBOARD - Mendapatkan tasks sebagai Flow<List<Task>> langsung (tanpa Resource wrapper).
+     * Real-time listener dari Firestore.
+     * 
+     * @return Flow<List<Task>> yang akan emit data baru setiap ada perubahan di Firestore
+     */
+    fun getTasksFlow(): Flow<List<Task>> = callbackFlow {
+        val currentUserId = getCurrentUserId()
+        
+        if (currentUserId == null) {
+            trySend(emptyList())
+            close()
+            return@callbackFlow
+        }
+
+        val listener = tasksCollection
+            .whereEqualTo("userId", currentUserId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    // Emit empty list on error, or you could log this
+                    trySend(emptyList())
+                    return@addSnapshotListener
+                }
+
+                if (snapshot != null) {
+                    try {
+                        val tasks = snapshot.documents
+                            .mapNotNull { documentToTask(it) }
+                            .filter { !it.isDeleted }
+                            .sortedWith(getTaskComparator())
+                        
+                        // Emit the new list of tasks
+                        trySend(tasks)
+                    } catch (e: Exception) {
+                        trySend(emptyList())
+                    }
+                }
+            }
+
+        // PENTING: Remove listener saat Flow tidak lagi di-collect
+        awaitClose { listener.remove() }
+    }
+
+    /**
      * Mendapatkan semua deleted tasks milik user untuk Recycle Bin.
      * 
      * @return Flow<Resource<List<Task>>> dengan tasks yang isDeleted = true

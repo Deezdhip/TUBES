@@ -2,77 +2,102 @@ package com.example.tubes.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// ==================== PRIMARY COLORS ====================
-/**
- * Warna utama: Royal Blue yang tegas
- */
-val PrimaryBlue = Color(0xFF2563EB)
+// ==================== MODERN PROJECT MANAGER - DEEP BLUE THEME ====================
 
 /**
- * Versi sedikit lebih gelap untuk gradient/tekan
+ * NavyDeep - Warna dominan untuk Header Profile & Kartu Tugas
  */
-val PrimaryVariant = Color(0xFF1D4ED8)
-
-// ==================== BACKGROUND & SURFACE ====================
-/**
- * Abu-abu sangat muda/cool grey untuk background layar
- * Agar mata tidak cepat lelah
- */
-val BackgroundLight = Color(0xFFF8F9FA)
+val NavyDeep = Color(0xFF0D1B3E)
 
 /**
- * Putih murni untuk Kartu Tugas dan Dialog
+ * Background - Putih keabuan lembut untuk background layar
  */
-val SurfaceWhite = Color(0xFFFFFFFF)
-
-// ==================== TEXT COLORS ====================
-/**
- * Slate Dark - Hitam kebiruan, lebih elegan dari hitam pekat
- * Untuk judul dan teks utama
- */
-val TextPrimary = Color(0xFF1E293B)
+val Background = Color(0xFFF4F6F9)
 
 /**
- * Slate Grey - Untuk tanggal/subtitle/secondary text
+ * TextOnBlue - Putih murni untuk teks di atas warna biru
  */
-val TextSecondary = Color(0xFF64748B)
+val TextOnBlue = Color(0xFFFFFFFF)
+
+/**
+ * TextDark - Navy gelap untuk teks di background putih
+ */
+val TextDark = Color(0xFF1F2C46)
+
+// ==================== ACCENT COLORS ====================
+
+/**
+ * AccentBlue - Untuk tombol dan link
+ */
+val AccentBlue = Color(0xFF3B82F6)
+
+/**
+ * AccentLightBlue - Untuk icon dan subtle highlights
+ */
+val AccentLightBlue = Color(0xFF60A5FA)
+
+// ==================== CATEGORY COLORS ====================
+
+/**
+ * Category colors untuk grid kategori
+ */
+val CategoryWork = Color(0xFFFF6B6B)
+val CategoryPersonal = Color(0xFF4ECDC4)
+val CategoryStudy = Color(0xFFFFD93D)
+val CategoryOthers = Color(0xFF9B59B6)
 
 // ==================== SEMANTIC COLORS ====================
+
 /**
- * Emerald - Untuk checklist selesai/success state
+ * SuccessGreen - Untuk status completed
  */
 val SuccessGreen = Color(0xFF10B981)
 
 /**
- * Soft Red - Untuk deadline lewat/hapus/error state
+ * ErrorRed - Untuk error dan deadline lewat
  */
 val ErrorRed = Color(0xFFEF4444)
 
 /**
- * Amber - Khusus ikon Pin
+ * PinGold - Untuk ikon pin
  */
 val PinGold = Color(0xFFF59E0B)
 
-// ==================== ADDITIONAL UTILITY COLORS ====================
 /**
- * Warning Orange - Untuk peringatan
+ * WarningOrange - Untuk peringatan
  */
 val WarningOrange = Color(0xFFF97316)
 
+// ==================== SURFACE & UTILITY COLORS ====================
+
 /**
- * Divider/Border color - Abu-abu muda untuk garis pemisah
+ * SurfaceWhite - Untuk kartu dan dialog
+ */
+val SurfaceWhite = Color(0xFFFFFFFF)
+
+/**
+ * DividerGrey - Untuk garis pemisah
  */
 val DividerGrey = Color(0xFFE2E8F0)
 
 /**
- * Disabled/Muted color
+ * DisabledGrey - Untuk elemen disabled
  */
 val DisabledGrey = Color(0xFF94A3B8)
 
+/**
+ * TextSecondary - Untuk teks sekunder
+ */
+val TextSecondary = Color(0xFF64748B)
+
 // ==================== LEGACY ALIASES (untuk kompatibilitas) ====================
-// Alias untuk menjaga kompatibilitas dengan kode yang sudah ada
-val OnBackgroundWhite = TextPrimary
-val OnSurfaceVariant = TextSecondary
+
+val PrimaryBlue = NavyDeep
+val PrimaryVariant = NavyDeep
+val BackgroundLight = Background
+val TextPrimary = TextDark
 val SurfaceCard = SurfaceWhite
-val BackgroundDark = BackgroundLight // Renamed but aliased for compatibility
-val TaskCardDark = SurfaceWhite // Task card now uses white surface
+val OnBackgroundWhite = TextDark
+val OnSurfaceVariant = TextSecondary
+val BackgroundDark = Background
+val TaskCardDark = SurfaceWhite

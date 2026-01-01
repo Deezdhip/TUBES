@@ -1,13 +1,12 @@
 package com.example.tubes.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.tubes.model.Task
 import com.example.tubes.repository.TaskRepository
 import com.example.tubes.util.DateUtils
-import com.example.tubes.util.Resource
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 
 /**
  * Data class untuk UI state statistik Dashboard
@@ -15,10 +14,11 @@ import kotlinx.coroutines.launch
 data class StatsUiState(
     val totalTasks: Int = 0,
     val completedTasks: Int = 0,
+    val pendingTasks: Int = 0,
     val overdueTasks: Int = 0,
     val totalFocusMinutes: Int = 0,
     val tasksByCategory: Map<String, Int> = emptyMap(),
-    val isLoading: Boolean = false,
+    val isLoading: Boolean = true,
     val error: String? = null,
     val completionPercentage: Float = 0f
 )
@@ -26,102 +26,119 @@ data class StatsUiState(
 /**
  * ViewModel untuk mengelola statistik Dashboard.
  * 
- * PENTING: Menggunakan Flow collection untuk REACTIVE updates!
- * Setiap kali data Task berubah di database (tambah/hapus/edit status),
- * Dashboard akan otomatis menghitung ulang statistik dan UI langsung berubah.
- * 
- * FIX: Menambahkan Job tracking untuk mencegah multiple collectors
- * saat refresh() dipanggil berulang kali.
+ * REAL-TIME dengan Firestore!
+ * Setiap perubahan di Firestore langsung update ke Dashboard.
  */
 class StatisticsViewModel : ViewModel() {
     private val repository = TaskRepository()
-    private val _uiState = MutableStateFlow(StatsUiState(isLoading = true))
-    val uiState: StateFlow<StatsUiState> = _uiState.asStateFlow()
-    
-    // Job tracking untuk observer - mencegah memory leak & multiple collectors
-    private var observerJob: Job? = null
 
-    init {
-        observeStats()
+    companion object {
+        private const val TAG = "DEBUG_APP"
     }
 
     /**
-     * Observe tasks dari repository secara reaktif.
-     * Menggunakan callbackFlow dari Firestore yang akan emit data setiap ada perubahan.
-     * 
-     * REACTIVE: Tidak perlu refresh manual!
-     * Firestore real-time listener akan push updates otomatis.
+     * StateFlow yang langsung terhubung ke Firestore real-time listener.
      */
-    private fun observeStats() {
-        // Cancel job sebelumnya jika ada untuk mencegah multiple collectors
-        observerJob?.cancel()
-        
-        observerJob = viewModelScope.launch {
-            repository.getTasks().collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> {
-                        _uiState.value = _uiState.value.copy(isLoading = true)
-                    }
-                    
-                    is Resource.Success -> {
-                        val tasks = resource.data ?: emptyList()
-                        
-                        // Hitung statistik
-                        val total = tasks.size
-                        val completed = tasks.count { it.isCompleted }
-                        val overdue = tasks.count { 
-                            !it.isCompleted && DateUtils.isOverdue(it.dueDate) 
-                        }
-                        val byCategory = tasks.groupBy { it.category }
-                            .mapValues { it.value.size }
-                        
-                        // Hitung persentase completion (real-time!)
-                        val percentage = if (total > 0) {
-                            (completed.toFloat() / total.toFloat()) * 100f
-                        } else 0f
-                        
-                        _uiState.value = StatsUiState(
-                            totalTasks = total,
-                            completedTasks = completed,
-                            overdueTasks = overdue,
-                            totalFocusMinutes = completed * 25, // Asumsi: 25 menit per task selesai
-                            tasksByCategory = byCategory,
-                            isLoading = false,
-                            error = null,
-                            completionPercentage = percentage
-                        )
-                    }
-                    
-                    is Resource.Error -> {
-                        _uiState.value = _uiState.value.copy(
-                            isLoading = false,
-                            error = resource.message
-                        )
-                    }
-                }
+    val uiState: StateFlow<StatsUiState> = repository.getTasksFlow()
+        .map { tasks -> 
+            // ============================================
+            // DEBUG: Print semua data dari Firebase
+            // ============================================
+            Log.d(TAG, "========================================")
+            Log.d(TAG, "REAL-TIME UPDATE FROM FIRESTORE")
+            Log.d(TAG, "Total tasks received: ${tasks.size}")
+            Log.d(TAG, "========================================")
+            
+            tasks.forEach { task ->
+                Log.d(TAG, "Task: ${task.title}")
+                Log.d(TAG, "  - isCompleted: ${task.isCompleted}")
+                Log.d(TAG, "  - progress: ${task.progress}")
+                Log.d(TAG, "  - safeProgress: ${safeProgress(task)}")
+                Log.d(TAG, "  - isDone: ${isTaskDone(task)}")
             }
+            
+            val total = tasks.size
+            
+            // ============================================
+            // LOGIKA SAPU JAGAT - SANGAT FLEKSIBEL
+            // ============================================
+            val completed = tasks.count { task -> isTaskDone(task) }
+            val pending = total - completed
+            
+            // Overdue = belum selesai DAN sudah lewat deadline
+            val overdue = tasks.count { task ->
+                !isTaskDone(task) && DateUtils.isOverdue(task.dueDate)
+            }
+            
+            // Group by category
+            val byCategory = tasks.groupBy { it.category }
+                .mapValues { it.value.size }
+            
+            // Hitung persentase (0-100), aman dari NaN
+            val percentage = if (total > 0) {
+                (completed.toFloat() / total.toFloat()) * 100f
+            } else 0f
+
+            // DEBUG: Log hasil perhitungan
+            Log.d(TAG, "----------------------------------------")
+            Log.d(TAG, "CALCULATION RESULTS:")
+            Log.d(TAG, "  Total: $total")
+            Log.d(TAG, "  Completed: $completed")
+            Log.d(TAG, "  Pending: $pending")
+            Log.d(TAG, "  Percentage: ${percentage}%")
+            Log.d(TAG, "========================================")
+            
+            StatsUiState(
+                totalTasks = total,
+                completedTasks = completed,
+                pendingTasks = pending,
+                overdueTasks = overdue,
+                totalFocusMinutes = completed * 25,
+                tasksByCategory = byCategory,
+                isLoading = false,
+                error = null,
+                completionPercentage = percentage
+            )
         }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000L),
+            initialValue = StatsUiState(isLoading = true)
+        )
+
+    /**
+     * CEK APAKAH TASK SELESAI
+     * Logika Sapu Jagat: True jika SALAH SATU kondisi terpenuhi:
+     * 1. isCompleted == true
+     * 2. progress >= 0.99 (skala 0.0-1.0)
+     * 3. progress >= 99 (skala 0-100)
+     */
+    private fun isTaskDone(task: Task): Boolean {
+        // Kondisi 1: Boolean manual
+        if (task.isCompleted) return true
+        
+        val progress = task.progress
+        
+        // Kondisi 2: Progress skala 0.0-1.0
+        if (progress >= 0.99f && progress <= 1.01f) return true
+        
+        // Kondisi 3: Progress skala 0-100
+        if (progress >= 99f) return true
+        
+        return false
     }
 
     /**
-     * Force refresh statistik.
-     * 
-     * NOTE: Dalam kebanyakan kasus, ini tidak diperlukan karena
-     * repository.getTasks() sudah menggunakan real-time listener.
-     * Function ini tetap disediakan untuk kasus edge dimana
-     * user ingin force reload data.
+     * Konversi progress ke skala 0.0-1.0 dengan aman
      */
-    fun refresh() {
-        observeStats()
-    }
-    
-    /**
-     * Cleanup saat ViewModel dihancurkan.
-     * Cancel observer job untuk mencegah memory leak.
-     */
-    override fun onCleared() {
-        super.onCleared()
-        observerJob?.cancel()
-        observerJob = null
+    private fun safeProgress(task: Task): Float {
+        if (task.isCompleted) return 1f
+        
+        val rawProgress = task.progress
+        
+        return when {
+            rawProgress > 1f -> (rawProgress / 100f).coerceIn(0f, 1f)
+            else -> rawProgress.coerceIn(0f, 1f)
+        }
     }
 }

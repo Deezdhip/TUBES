@@ -28,5 +28,6 @@ data class Task(
     val dueDate: Long? = null,
     val priority: String = "Medium",
     val category: String = "Personal",
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    val progress: Float = 0f  // Progress 0.0 - 1.0 atau 0 - 100
 ) : Parcelable

@@ -1,20 +1,17 @@
 package com.example.tubes.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.Delete
-import kotlinx.coroutines.launch
-
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -33,15 +30,11 @@ import com.example.tubes.viewmodel.TaskUiState
 import com.example.tubes.viewmodel.TaskViewModel
 import com.example.tubes.ui.components.AddTaskDialog
 import com.example.tubes.viewmodel.AuthViewModel
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.clickable
-import android.net.Uri
-import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.launch
 
 /**
- * Modern Clean Minimalist HomeScreen
- * White background dengan Royal Blue accent
+ * Modern Project Manager Style - HomeScreen
+ * Deep Blue Theme dengan grid layout
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,7 +49,6 @@ fun HomeScreen(
     val uiState by viewModel.uiState.collectAsState()
     
     var showDialog by remember { mutableStateOf(false) }
-    var showMenu by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     
     val authRepository = remember { AuthRepository() }
@@ -64,117 +56,25 @@ fun HomeScreen(
     
     var selectedTab by remember { mutableIntStateOf(0) }
     
-    val context = LocalContext.current
-    
-    // Image Picker
-    val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        if (uri != null) {
-            authViewModel.updateProfile(name = userName, photoUri = uri)
-        }
-    }
-
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    
+    // Get greeting based on time of day
+    val greeting = getGreeting()
 
     Scaffold(
-        topBar = {
-            // Clean minimal top bar
-            TopAppBar(
-                title = { },
-                actions = {
-                    IconButton(onClick = { showMenu = !showMenu }) {
-                        Icon(
-                            Icons.Default.List, 
-                            contentDescription = "More",
-                            tint = TextSecondary
-                        )
-                    }
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("Recycle Bin") },
-                            onClick = {
-                                showMenu = false
-                                onNavigateToRecycleBin()
-                            },
-                            leadingIcon = {
-                                Icon(Icons.Default.Delete, contentDescription = null)
-                            }
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = BackgroundLight,
-                    actionIconContentColor = TextSecondary
-                )
-            )
-        },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
-            // Floating Bottom Navigation - Clean White
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 16.dp),
-                shape = RoundedCornerShape(50.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = SurfaceWhite
-                ),
-                elevation = CardDefaults.cardElevation(8.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(70.dp)
-                        .padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    // Home Tab
-                    NavigationIcon(
-                        icon = Icons.Default.Home,
-                        isSelected = selectedTab == 0,
-                        onClick = { selectedTab = 0 }
-                    )
-
-                    // Dashboard Tab
-                    NavigationIcon(
-                        icon = Icons.Default.List,
-                        isSelected = selectedTab == 1,
-                        onClick = { selectedTab = 1 }
-                    )
-
-                    // Add Task Action - Royal Blue accent
-                    Box(
-                        modifier = Modifier
-                            .size(50.dp)
-                            .clip(CircleShape)
-                            .background(PrimaryBlue)
-                            .clickable { showDialog = true },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Add Task",
-                            tint = Color.White,
-                            modifier = Modifier.size(28.dp)
-                        )
-                    }
-
-                    // Profile Tab
-                    NavigationIcon(
-                        icon = Icons.Default.Person,
-                        isSelected = selectedTab == 2,
-                        onClick = { selectedTab = 2 }
-                    )
-                }
-            }
+            // Modern Bottom Navigation with FAB cradle
+            ModernBottomBar(
+                selectedTab = selectedTab,
+                onTabSelected = { selectedTab = it },
+                onAddClick = { showDialog = true }
+            )
         },
-        containerColor = BackgroundLight
+        containerColor = Background,
+        floatingActionButton = { },
+        floatingActionButtonPosition = FabPosition.Center
     ) { paddingValues ->
         Box(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
             when (selectedTab) {
@@ -186,57 +86,102 @@ fun HomeScreen(
                                 modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.Center
                             ) {
-                                CircularProgressIndicator(color = PrimaryBlue)
+                                CircularProgressIndicator(color = NavyDeep)
                             }
                         }
 
                         is TaskUiState.Success -> {
                             val tasks = state.tasks
-                            val inProgressTasks = tasks.count { !it.isCompleted }
                             val visibleTasks = if (searchQuery.isBlank()) {
                                 tasks
                             } else {
                                 tasks.filter { it.title.contains(searchQuery, ignoreCase = true) }
                             }
                             
-                            LazyColumn(
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(2),
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .background(BackgroundLight)
+                                    .background(Background),
+                                contentPadding = PaddingValues(16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
-                                // ==================== CLEAN HEADER ====================
-                                item {
+                                // ==================== HEADER (FULL WIDTH) ====================
+                                item(span = { GridItemSpan(2) }) {
                                     Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .background(BackgroundLight)
-                                            .padding(horizontal = 24.dp, vertical = 16.dp)
+                                            .padding(horizontal = 8.dp, vertical = 8.dp)
                                     ) {
-                                        // Greeting - Large Bold Text
+                                        // App bar with menu
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            // Menu icon - Navigate to RecycleBin
+                                            IconButton(
+                                                onClick = { onNavigateToRecycleBin() }
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Menu,
+                                                    contentDescription = "Recycle Bin",
+                                                    tint = TextDark,
+                                                    modifier = Modifier.size(24.dp)
+                                                )
+                                            }
+                                            
+                                            Text(
+                                                text = "Home",
+                                                fontSize = 18.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = TextDark
+                                            )
+                                            
+                                            // Profile avatar - Navigate to Profile tab
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(36.dp)
+                                                    .clip(CircleShape)
+                                                    .background(AccentBlue)
+                                                    .clickable { selectedTab = 3 },
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    text = userName.firstOrNull()?.toString()?.uppercase() ?: "U",
+                                                    color = TextOnBlue,
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 14.sp
+                                                )
+                                            }
+                                        }
+                                        
+                                        Spacer(modifier = Modifier.height(24.dp))
+                                        
+                                        // Greeting
                                         Text(
-                                            text = "Hi, ${userName}!",
+                                            text = "Hi ${userName}!",
                                             fontSize = 28.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = TextPrimary
+                                            color = TextDark
                                         )
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        // Subtitle - Grey
                                         Text(
-                                            text = "You have $inProgressTasks tasks pending",
+                                            text = greeting,
                                             fontSize = 14.sp,
                                             color = TextSecondary
                                         )
                                     }
                                 }
-
-                                // ==================== FLOATING SEARCH BAR ====================
-                                item {
+                                
+                                // ==================== SEARCH BAR (FULL WIDTH) ====================
+                                item(span = { GridItemSpan(2) }) {
                                     Card(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(horizontal = 24.dp, vertical = 8.dp)
+                                            .padding(horizontal = 8.dp)
                                             .shadow(
-                                                elevation = 4.dp,
+                                                elevation = 8.dp,
                                                 shape = RoundedCornerShape(50.dp),
                                                 ambientColor = Color.Black.copy(alpha = 0.1f)
                                             ),
@@ -251,7 +196,7 @@ fun HomeScreen(
                                             modifier = Modifier.fillMaxWidth(),
                                             placeholder = { 
                                                 Text(
-                                                    "Search tasks...", 
+                                                    "Search", 
                                                     color = TextSecondary
                                                 ) 
                                             },
@@ -268,31 +213,46 @@ fun HomeScreen(
                                                 unfocusedContainerColor = SurfaceWhite,
                                                 focusedBorderColor = Color.Transparent,
                                                 unfocusedBorderColor = Color.Transparent,
-                                                focusedTextColor = TextPrimary,
-                                                unfocusedTextColor = TextPrimary
+                                                focusedTextColor = TextDark,
+                                                unfocusedTextColor = TextDark
                                             ),
                                             singleLine = true
                                         )
                                     }
                                 }
-
-                                // ==================== SECTION HEADER ====================
-                                item {
-                                    Text(
-                                        text = "Ongoing Tasks",
-                                        fontSize = 18.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = TextPrimary,
-                                        modifier = Modifier.padding(
-                                            horizontal = 24.dp, 
-                                            vertical = 16.dp
-                                        )
-                                    )
+                                
+                                // ==================== WELCOME BANNER (FULL WIDTH) ====================
+                                item(span = { GridItemSpan(2) }) {
+                                    WelcomeBanner()
                                 }
-
-                                // ==================== TASK LIST ====================
+                                
+                                // ==================== SECTION HEADER (FULL WIDTH) ====================
+                                item(span = { GridItemSpan(2) }) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 8.dp, vertical = 8.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "Ongoing Projects",
+                                            fontSize = 18.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = TextDark
+                                        )
+                                        Text(
+                                            text = "view all",
+                                            fontSize = 14.sp,
+                                            color = TextSecondary,
+                                            modifier = Modifier.clickable { /* TODO */ }
+                                        )
+                                    }
+                                }
+                                
+                                // ==================== TASK GRID ====================
                                 if (visibleTasks.isEmpty()) {
-                                    item {
+                                    item(span = { GridItemSpan(2) }) {
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxWidth()
@@ -325,9 +285,13 @@ fun HomeScreen(
                                     ) { task ->
                                         TaskItem(
                                             task = task,
-                                            onClick = { onNavigateToTimer(it.title) },
-                                            onCheckClick = { t, isChecked ->
-                                                viewModel.updateTaskStatus(t.id, isChecked) 
+                                            // Klik Card = Toggle status (update isCompleted + progress)
+                                            onClick = { t -> 
+                                                viewModel.toggleTaskStatus(t)
+                                            },
+                                            // Menu: Mark Complete/Incomplete = Toggle status
+                                            onCheckClick = { t, _ ->
+                                                viewModel.toggleTaskStatus(t)
                                             },
                                             onDeleteClick = { t ->
                                                 viewModel.deleteTask(t.id) 
@@ -349,8 +313,9 @@ fun HomeScreen(
                                     }
                                 }
                                 
-                                item {
-                                    Spacer(modifier = Modifier.height(100.dp))
+                                // Bottom spacing
+                                item(span = { GridItemSpan(2) }) {
+                                    Spacer(modifier = Modifier.height(80.dp))
                                 }
                             }
                         }
@@ -371,7 +336,7 @@ fun HomeScreen(
                                     Button(
                                         onClick = { viewModel.clearError() },
                                         colors = ButtonDefaults.buttonColors(
-                                            containerColor = PrimaryBlue
+                                            containerColor = NavyDeep
                                         )
                                     ) {
                                         Text("Retry")
@@ -385,6 +350,13 @@ fun HomeScreen(
                     DashboardScreen()
                 }
                 2 -> {
+                    // Timer Screen - user must select a task first
+                    TimerScreen(
+                        taskTitle = "Focus Session",
+                        onNavigateBack = { selectedTab = 0 }
+                    )
+                }
+                3 -> {
                     ProfileScreen(
                         onLogout = {
                             authRepository.logout()
@@ -408,26 +380,195 @@ fun HomeScreen(
     }
 }
 
+/**
+ * Welcome Banner with illustration
+ */
 @Composable
-private fun NavigationIcon(
+private fun WelcomeBanner() {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = NavyDeep
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = "Welcome!",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextOnBlue
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Let's schedule your\nprojects",
+                    fontSize = 14.sp,
+                    color = TextOnBlue.copy(alpha = 0.8f),
+                    lineHeight = 20.sp
+                )
+            }
+            
+            // Illustration placeholder - Person icon
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(AccentBlue.copy(alpha = 0.3f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = "Illustration",
+                    tint = TextOnBlue,
+                    modifier = Modifier.size(48.dp)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Modern Bottom Navigation Bar with FAB in center
+ */
+@Composable
+private fun ModernBottomBar(
+    selectedTab: Int,
+    onTabSelected: (Int) -> Unit,
+    onAddClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        // White background bar
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(80.dp)
+                .align(Alignment.BottomCenter),
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = SurfaceWhite
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 16.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 24.dp),
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Home
+                BottomNavItem(
+                    icon = Icons.Outlined.Home,
+                    label = "Home",
+                    isSelected = selectedTab == 0,
+                    onClick = { onTabSelected(0) }
+                )
+                
+                // Stats (Dashboard)
+                BottomNavItem(
+                    icon = Icons.Outlined.BarChart,
+                    label = "Stats",
+                    isSelected = selectedTab == 1,
+                    onClick = { onTabSelected(1) }
+                )
+                
+                // Spacer for FAB
+                Spacer(modifier = Modifier.width(56.dp))
+                
+                // Timer
+                BottomNavItem(
+                    icon = Icons.Outlined.Timer,
+                    label = "Timer",
+                    isSelected = selectedTab == 2,
+                    onClick = { onTabSelected(2) }
+                )
+                
+                // Profile
+                BottomNavItem(
+                    icon = Icons.Outlined.Person,
+                    label = "Profile",
+                    isSelected = selectedTab == 3,
+                    onClick = { onTabSelected(3) }
+                )
+            }
+        }
+        
+        // FAB - Centered and elevated
+        FloatingActionButton(
+            onClick = onAddClick,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .offset(y = (-24).dp)
+                .size(56.dp),
+            shape = CircleShape,
+            containerColor = NavyDeep,
+            elevation = FloatingActionButtonDefaults.elevation(
+                defaultElevation = 8.dp
+            )
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = "Add Task",
+                tint = TextOnBlue,
+                modifier = Modifier.size(28.dp)
+            )
+        }
+    }
+}
+
+/**
+ * Bottom Navigation Item
+ */
+@Composable
+private fun BottomNavItem(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    Box(
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
-            .size(50.dp)
-            .clickable(
-                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                indication = ripple(bounded = false, radius = 24.dp)
-            ) { onClick() },
-        contentAlignment = Alignment.Center
+            .clickable { onClick() }
+            .padding(8.dp)
     ) {
         Icon(
             imageVector = icon,
-            contentDescription = null,
-            tint = if (isSelected) PrimaryBlue else TextSecondary,
-            modifier = Modifier.size(28.dp)
+            contentDescription = label,
+            tint = if (isSelected) AccentBlue else TextSecondary,
+            modifier = Modifier.size(24.dp)
         )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = label,
+            fontSize = 11.sp,
+            color = if (isSelected) AccentBlue else TextSecondary,
+            fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal
+        )
+    }
+}
+
+/**
+ * Get greeting based on time of day
+ */
+private fun getGreeting(): String {
+    val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+    return when {
+        hour < 12 -> "Good Morning"
+        hour < 17 -> "Good Afternoon"
+        else -> "Good Evening"
     }
 }

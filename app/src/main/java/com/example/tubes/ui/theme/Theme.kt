@@ -11,73 +11,67 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 /**
- * Light Color Scheme untuk White Minimalist Theme
- * dengan aksen Royal Blue
+ * Modern Project Manager - Deep Blue Theme Color Scheme
  */
 private val LightColorScheme = lightColorScheme(
-    // Primary colors
-    primary = PrimaryBlue,
-    onPrimary = SurfaceWhite,
-    primaryContainer = PrimaryBlue.copy(alpha = 0.12f),
-    onPrimaryContainer = PrimaryVariant,
+    // Primary colors - NavyDeep
+    primary = NavyDeep,
+    onPrimary = TextOnBlue,
+    primaryContainer = NavyDeep.copy(alpha = 0.12f),
+    onPrimaryContainer = NavyDeep,
     
-    // Secondary colors (menggunakan variant dari primary)
-    secondary = PrimaryVariant,
-    onSecondary = SurfaceWhite,
-    secondaryContainer = PrimaryBlue.copy(alpha = 0.08f),
-    onSecondaryContainer = PrimaryVariant,
+    // Secondary colors - AccentBlue
+    secondary = AccentBlue,
+    onSecondary = TextOnBlue,
+    secondaryContainer = AccentBlue.copy(alpha = 0.12f),
+    onSecondaryContainer = AccentBlue,
     
-    // Tertiary colors (menggunakan accent color)
+    // Tertiary colors - Accent
     tertiary = PinGold,
-    onTertiary = SurfaceWhite,
+    onTertiary = TextOnBlue,
     tertiaryContainer = PinGold.copy(alpha = 0.12f),
     onTertiaryContainer = PinGold,
     
     // Background colors
-    background = BackgroundLight,
-    onBackground = TextPrimary,
+    background = Background,
+    onBackground = TextDark,
     
     // Surface colors
     surface = SurfaceWhite,
-    onSurface = TextPrimary,
-    surfaceVariant = BackgroundLight,
+    onSurface = TextDark,
+    surfaceVariant = Background,
     onSurfaceVariant = TextSecondary,
     
     // Error colors
     error = ErrorRed,
-    onError = SurfaceWhite,
+    onError = TextOnBlue,
     errorContainer = ErrorRed.copy(alpha = 0.12f),
     onErrorContainer = ErrorRed,
     
     // Other colors
     outline = DividerGrey,
     outlineVariant = DividerGrey.copy(alpha = 0.5f),
-    scrim = TextPrimary.copy(alpha = 0.32f),
+    scrim = TextDark.copy(alpha = 0.32f),
     
-    // Inverse colors (untuk snackbar, dll)
-    inverseSurface = TextPrimary,
-    inverseOnSurface = SurfaceWhite,
-    inversePrimary = PrimaryBlue.copy(alpha = 0.8f),
+    // Inverse colors
+    inverseSurface = TextDark,
+    inverseOnSurface = TextOnBlue,
+    inversePrimary = AccentBlue,
     
     // Surface tint
-    surfaceTint = PrimaryBlue
+    surfaceTint = NavyDeep
 )
 
 /**
- * TUBES Theme - White Minimalist dengan Royal Blue accent
- * 
- * CATATAN: Theme ini SELALU menggunakan LightColorScheme
- * untuk tampilan konsisten putih minimalis.
- * Dynamic color dan dark theme dinonaktifkan.
+ * TUBES Theme - Modern Project Manager dengan Deep Blue Theme
  */
 @Suppress("DEPRECATION")
 @Composable
 fun TUBESTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(), // Parameter diabaikan
-    dynamicColor: Boolean = false, // Dynamic color dinonaktifkan
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    // SELALU gunakan Light scheme untuk tampilan konsisten
     val colorScheme = LightColorScheme
     
     val view = LocalView.current
@@ -85,14 +79,14 @@ fun TUBESTheme(
         SideEffect {
             val window = (view.context as Activity).window
             
-            // Set status bar color ke background light
-            window.statusBarColor = BackgroundLight.toArgb()
+            // Set status bar to Background color
+            window.statusBarColor = Background.toArgb()
             
-            // Gunakan dark icons di status bar (karena background terang)
+            // Use dark icons on light status bar
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = true
             
-            // Set navigation bar juga light
-            window.navigationBarColor = BackgroundLight.toArgb()
+            // Navigation bar also light
+            window.navigationBarColor = SurfaceWhite.toArgb()
             WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = true
         }
     }

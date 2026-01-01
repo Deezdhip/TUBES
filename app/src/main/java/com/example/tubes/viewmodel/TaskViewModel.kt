@@ -227,6 +227,54 @@ class TaskViewModel : ViewModel() {
     }
 
     /**
+     * TOGGLE TASK STATUS (COMPLETE SOLUTION)
+     * Update BOTH isCompleted AND progress:
+     * - Jika belum selesai -> isCompleted=true, progress=1.0
+     * - Jika sudah selesai -> isCompleted=false, progress=0.0
+     * 
+     * @param task Task yang akan di-toggle statusnya
+     */
+    fun toggleTaskStatus(task: Task) {
+        val currentState = _uiState.value
+        if (currentState !is TaskUiState.Success) return
+        
+        val originalList = currentState.tasks
+        
+        // Toggle status: jika selesai -> belum, jika belum -> selesai
+        val newStatus = !task.isCompleted
+        val newProgress = if (newStatus) 1.0f else 0.0f
+        
+        Log.d(TAG, "Toggling task '${task.title}': isCompleted $newStatus, progress $newProgress")
+        
+        // Step 1: Optimistic Update
+        val updatedList = originalList.map { t ->
+            if (t.id == task.id) t.copy(
+                isCompleted = newStatus,
+                progress = newProgress
+            ) else t
+        }.sortedWith(taskComparator)
+        
+        _uiState.value = TaskUiState.Success(updatedList)
+
+        // Step 2: Sync ke Firebase
+        viewModelScope.launch {
+            try {
+                val updatedTask = task.copy(
+                    isCompleted = newStatus,
+                    progress = newProgress
+                )
+                repository.updateTask(updatedTask)
+                Log.d(TAG, "Task updated in Firebase: ${task.title}")
+            } catch (e: Exception) {
+                // Step 3: Rollback jika gagal
+                Log.e(TAG, "Toggle failed, rolling back", e)
+                _uiState.value = TaskUiState.Success(originalList)
+                _errorMessage.value = "Gagal mengupdate task: ${e.message}"
+            }
+        }
+    }
+
+    /**
      * Toggle status pin task dengan Optimistic Update
      * UI diupdate langsung, kemudian sync ke server.
      * Jika gagal, state akan di-rollback.
