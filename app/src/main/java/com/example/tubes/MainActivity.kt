@@ -4,6 +4,10 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -46,7 +50,32 @@ fun TaskManagerApp() {
 
     NavHost(
         navController = navController,
-        startDestination = "splash"
+        startDestination = "splash",
+        // ==================== MODERN SLIDE TRANSITIONS ====================
+        enterTransition = {
+            slideIntoContainer(
+                towards = AnimatedContentTransitionScope.SlideDirection.Left,
+                animationSpec = tween(300)
+            ) + fadeIn(animationSpec = tween(300))
+        },
+        exitTransition = {
+            slideOutOfContainer(
+                towards = AnimatedContentTransitionScope.SlideDirection.Left,
+                animationSpec = tween(300)
+            ) + fadeOut(animationSpec = tween(300))
+        },
+        popEnterTransition = {
+            slideIntoContainer(
+                towards = AnimatedContentTransitionScope.SlideDirection.Right,
+                animationSpec = tween(300)
+            ) + fadeIn(animationSpec = tween(300))
+        },
+        popExitTransition = {
+            slideOutOfContainer(
+                towards = AnimatedContentTransitionScope.SlideDirection.Right,
+                animationSpec = tween(300)
+            ) + fadeOut(animationSpec = tween(300))
+        }
     ) {
         // Splash Screen - Always start here
         composable("splash") {
@@ -103,6 +132,9 @@ fun TaskManagerApp() {
                 onNavigateToRecycleBin = {
                     navController.navigate("recycle_bin")
                 },
+                onNavigateToCategory = { categoryName ->
+                    navController.navigate("category/$categoryName")
+                },
                 onLogout = {
                     // Navigate ke login dan hapus seluruh back stack
                     navController.navigate("login") {
@@ -135,6 +167,27 @@ fun TaskManagerApp() {
                 taskId = taskId,
                 onNavigateBack = {
                     navController.popBackStack()
+                }
+            )
+        }
+        
+        // Route untuk CategoryTasksScreen with category filter
+        composable(
+            route = "category/{categoryName}",
+            arguments = listOf(
+                navArgument("categoryName") {
+                    type = NavType.StringType
+                }
+            )
+        ) { backStackEntry ->
+            val categoryName = backStackEntry.arguments?.getString("categoryName") ?: "Tasks"
+            com.example.tubes.ui.screens.CategoryTasksScreen(
+                categoryName = categoryName,
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+                onNavigateToTimer = { taskId ->
+                    navController.navigate("timer/$taskId")
                 }
             )
         }

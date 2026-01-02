@@ -31,12 +31,19 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
 import com.example.tubes.ui.theme.*
 import com.example.tubes.viewmodel.AuthUiState
 import com.example.tubes.viewmodel.AuthViewModel
 import com.example.tubes.viewmodel.TaskViewModel
 import com.example.tubes.viewmodel.TaskUiState
+import com.example.tubes.repository.AuthRepository
+import android.graphics.BitmapFactory
+import android.util.Base64
+import androidx.compose.ui.graphics.asImageBitmap
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
  * Modern Project Manager Style - ProfileScreen
@@ -46,6 +53,7 @@ import com.example.tubes.viewmodel.TaskUiState
 @Composable
 fun ProfileScreen(
     onLogout: () -> Unit,
+    onNavigateToCategory: (String) -> Unit = {},
     viewModel: AuthViewModel = viewModel(),
     taskViewModel: TaskViewModel = viewModel()
 ) {
@@ -55,9 +63,26 @@ fun ProfileScreen(
     val userName = viewModel.getCurrentUserName() ?: "User"
     val userEmail = viewModel.getCurrentUserEmail() ?: "email@example.com"
     val userPhotoUrl = viewModel.getCurrentUserPhotoUrl()
+    
+    // Context for Base64 encoding
+    val context = LocalContext.current
+    
+    // State for Base64 photo from Firestore
+    var photoBase64 by remember { mutableStateOf<String?>(null) }
+    val authRepository = remember { AuthRepository() }
+    
+    // Load Base64 photo from Firestore on launch
+    LaunchedEffect(Unit) {
+        try {
+            photoBase64 = authRepository.getUserPhotoBase64()
+        } catch (_: Exception) { }
+    }
 
     var showEditNameDialog by remember { mutableStateOf(false) }
     var showChangePasswordDialog by remember { mutableStateOf(false) }
+    
+    // Coroutine scope for async operations
+    val scope = rememberCoroutineScope()
     
     // Calculate task statistics
     val (totalTasks, completedTasks, pendingTasks) = remember(taskState) {
@@ -74,12 +99,19 @@ fun ProfileScreen(
         }
     }
     
-    // Image Picker
+    // Image Picker - passes Context for Base64 encoding
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) {
-            viewModel.updateProfile(name = userName, photoUri = uri)
+            viewModel.updateProfile(name = userName, photoUri = uri, context = context)
+            // Reload photoBase64 after upload using proper coroutine scope
+            scope.launch {
+                delay(1500) // Wait for upload
+                try {
+                    photoBase64 = authRepository.getUserPhotoBase64()
+                } catch (_: Exception) { }
+            }
         }
     }
     
@@ -163,33 +195,62 @@ fun ProfileScreen(
                         contentAlignment = Alignment.BottomEnd,
                         modifier = Modifier.size(100.dp)
                     ) {
-                        if (userPhotoUrl != null) {
-                            AsyncImage(
-                                model = userPhotoUrl,
-                                contentDescription = "Profile Picture",
-                                modifier = Modifier
-                                    .size(100.dp)
-                                    .clip(CircleShape)
-                                    .border(3.dp, Color.White.copy(alpha = 0.3f), CircleShape)
-                                    .clickable { launcher.launch("image/*") },
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            // Placeholder with initial
-                            Surface(
-                                modifier = Modifier
-                                    .size(100.dp)
-                                    .clickable { launcher.launch("image/*") },
-                                shape = CircleShape,
-                                color = Color.White.copy(alpha = 0.2f)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Text(
-                                        text = userName.firstOrNull()?.toString()?.uppercase() ?: "U",
-                                        fontSize = 40.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.White
-                                    )
+                        // Decode Base64 to Bitmap
+                        val photoBitmap = remember(photoBase64) {
+                            photoBase64?.let { base64 ->
+                                try {
+                                    val bytes = Base64.decode(base64, Base64.DEFAULT)
+                                    BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                                } catch (e: Exception) {
+                                    null
+                                }
+                            }
+                        }
+                        
+                        when {
+                            // Priority 1: Base64 from Firestore
+                            photoBitmap != null -> {
+                                androidx.compose.foundation.Image(
+                                    bitmap = photoBitmap.asImageBitmap(),
+                                    contentDescription = "Profile Picture",
+                                    modifier = Modifier
+                                        .size(100.dp)
+                                        .clip(CircleShape)
+                                        .border(3.dp, Color.White.copy(alpha = 0.3f), CircleShape)
+                                        .clickable { launcher.launch("image/*") },
+                                    contentScale = ContentScale.Crop
+                                )
+                            }
+                            // Priority 2: Firebase Auth photo URL (fallback)
+                            userPhotoUrl != null -> {
+                                AsyncImage(
+                                    model = userPhotoUrl,
+                                    contentDescription = "Profile Picture",
+                                    modifier = Modifier
+                                        .size(100.dp)
+                                        .clip(CircleShape)
+                                        .border(3.dp, Color.White.copy(alpha = 0.3f), CircleShape)
+                                        .clickable { launcher.launch("image/*") },
+                                    contentScale = ContentScale.Crop
+                                )
+                            }
+                            // Priority 3: Placeholder with initial
+                            else -> {
+                                Surface(
+                                    modifier = Modifier
+                                        .size(100.dp)
+                                        .clickable { launcher.launch("image/*") },
+                                    shape = CircleShape,
+                                    color = Color.White.copy(alpha = 0.2f)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text(
+                                            text = userName.firstOrNull()?.toString()?.uppercase() ?: "U",
+                                            fontSize = 40.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -317,12 +378,14 @@ fun ProfileScreen(
                         icon = Icons.Default.Work,
                         name = "Work",
                         color = CategoryWork,
+                        onClick = { onNavigateToCategory("Work") },
                         modifier = Modifier.weight(1f)
                     )
                     CategoryCard(
                         icon = Icons.Default.Person,
                         name = "Personal",
                         color = CategoryPersonal,
+                        onClick = { onNavigateToCategory("Personal") },
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -337,12 +400,14 @@ fun ProfileScreen(
                         icon = Icons.Default.School,
                         name = "Study",
                         color = CategoryStudy,
+                        onClick = { onNavigateToCategory("Study") },
                         modifier = Modifier.weight(1f)
                     )
                     CategoryCard(
                         icon = Icons.Default.MoreHoriz,
                         name = "Others",
                         color = CategoryOthers,
+                        onClick = { onNavigateToCategory("Others") },
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -446,18 +511,20 @@ private fun ModernStatItem(
 }
 
 /**
- * Category Card for categories grid
+ * Category Card for categories grid - clickable to navigate to filtered tasks
  */
 @Composable
 private fun CategoryCard(
     icon: ImageVector,
     name: String,
     color: Color,
+    onClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Card(
         modifier = modifier
-            .height(100.dp),
+            .height(100.dp)
+            .clickable { onClick() },
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
             containerColor = SurfaceWhite

@@ -1,8 +1,6 @@
 package com.example.tubes.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -10,15 +8,12 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import com.example.tubes.ui.theme.*
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
@@ -33,8 +28,17 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.tubes.viewmodel.AuthUiState
 import com.example.tubes.viewmodel.AuthViewModel
 
+// ==================== WARNA TEMA ULTRA-MINIMALIST ====================
+private val NavyDeep = Color(0xFF0D1B3E)
+private val GhostBorder = Color.White.copy(alpha = 0.5f)
+private val GhostBorderFocused = Color.White
+private val TextWhite = Color.White
+private val TextGray = Color.Gray
+private val ErrorRed = Color(0xFFFF6B6B)
+
 /**
- * RegisterScreen - Modern, minimalis, dan menenangkan dengan MVVM pattern
+ * RegisterScreen - Ultra-Minimalist Dark Aesthetic
+ * Ghost Input Style: Transparent inputs with subtle white borders
  */
 @Composable
 fun RegisterScreen(
@@ -53,7 +57,6 @@ fun RegisterScreen(
     val focusManager = LocalFocusManager.current
     val authState by viewModel.authState.collectAsState()
 
-    // Handle success state
     LaunchedEffect(authState) {
         if (authState is AuthUiState.Success) {
             onRegisterSuccess()
@@ -63,67 +66,46 @@ fun RegisterScreen(
     val isLoading = authState is AuthUiState.Loading
     val errorMessage = (authState as? AuthUiState.Error)?.message
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(BackgroundDark)
+    Surface(
+        modifier = modifier.fillMaxSize(),
+        color = NavyDeep
     ) {
-        // Background Decoration
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            drawCircle(
-                color = PrimaryBlue.copy(alpha = 0.15f),
-                radius = 200.dp.toPx(),
-                center = center.copy(x = size.width, y = 0f)
-            )
-            drawCircle(
-                color = PrimaryBlue.copy(alpha = 0.1f),
-                radius = 150.dp.toPx(),
-                center = center.copy(x = 0f, y = size.height)
-            )
-        }
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp)
+                .padding(horizontal = 32.dp)
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // App Branding
-            Text(
-                text = "FocusTask",
-                fontSize = 42.sp,
-                fontWeight = FontWeight.Bold,
-                color = PrimaryBlue
+            // ==================== LOGO ====================
+            Icon(
+                imageVector = Icons.Rounded.CheckCircle,
+                contentDescription = "Logo",
+                tint = TextWhite,
+                modifier = Modifier.size(80.dp)
             )
             
-            Spacer(modifier = Modifier.height(8.dp))
-
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // ==================== TITLE ====================
             Text(
-                text = "Create Account",
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
+                text = "FocusTask",
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextWhite
             )
 
             Spacer(modifier = Modifier.height(40.dp))
 
-            // Name Field
+            // ==================== NAME INPUT (GHOST STYLE) ====================
             OutlinedTextField(
                 value = name,
                 onValueChange = { 
                     name = it
                     if (errorMessage != null) viewModel.clearError()
                 },
-                label = { Text("Nama Lengkap") },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = "Name Icon"
-                    )
-                },
+                label = { Text("Full Name") },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
                 singleLine = true,
@@ -135,15 +117,22 @@ fun RegisterScreen(
                     onNext = { focusManager.moveFocus(FocusDirection.Down) }
                 ),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    focusedBorderColor = GhostBorderFocused,
+                    unfocusedBorderColor = GhostBorder,
+                    focusedTextColor = TextWhite,
+                    unfocusedTextColor = TextWhite,
+                    focusedLabelColor = TextWhite,
+                    unfocusedLabelColor = TextGray,
+                    cursorColor = TextWhite
                 ),
                 enabled = !isLoading
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Email Field
+            // ==================== EMAIL INPUT (GHOST STYLE) ====================
             OutlinedTextField(
                 value = email,
                 onValueChange = { 
@@ -151,12 +140,6 @@ fun RegisterScreen(
                     if (errorMessage != null) viewModel.clearError()
                 },
                 label = { Text("Email") },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Email,
-                        contentDescription = "Email Icon"
-                    )
-                },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
                 singleLine = true,
@@ -168,15 +151,22 @@ fun RegisterScreen(
                     onNext = { focusManager.moveFocus(FocusDirection.Down) }
                 ),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    focusedBorderColor = GhostBorderFocused,
+                    unfocusedBorderColor = GhostBorder,
+                    focusedTextColor = TextWhite,
+                    unfocusedTextColor = TextWhite,
+                    focusedLabelColor = TextWhite,
+                    unfocusedLabelColor = TextGray,
+                    cursorColor = TextWhite
                 ),
                 enabled = !isLoading
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Password Field
+            // ==================== PASSWORD INPUT (GHOST STYLE) ====================
             OutlinedTextField(
                 value = password,
                 onValueChange = { 
@@ -184,17 +174,12 @@ fun RegisterScreen(
                     if (errorMessage != null) viewModel.clearError()
                 },
                 label = { Text("Password") },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Lock,
-                        contentDescription = "Password Icon"
-                    )
-                },
                 trailingIcon = {
                     TextButton(onClick = { passwordVisible = !passwordVisible }) {
                         Text(
                             text = if (passwordVisible) "Hide" else "Show",
-                            style = MaterialTheme.typography.labelMedium
+                            color = TextWhite,
+                            fontSize = 12.sp
                         )
                     }
                 },
@@ -210,33 +195,35 @@ fun RegisterScreen(
                     onNext = { focusManager.moveFocus(FocusDirection.Down) }
                 ),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    focusedBorderColor = GhostBorderFocused,
+                    unfocusedBorderColor = GhostBorder,
+                    focusedTextColor = TextWhite,
+                    unfocusedTextColor = TextWhite,
+                    focusedLabelColor = TextWhite,
+                    unfocusedLabelColor = TextGray,
+                    cursorColor = TextWhite
                 ),
                 enabled = !isLoading
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Confirm Password Field
+            // ==================== CONFIRM PASSWORD INPUT (GHOST STYLE) ====================
             OutlinedTextField(
                 value = confirmPassword,
                 onValueChange = { 
                     confirmPassword = it
                     if (errorMessage != null) viewModel.clearError()
                 },
-                label = { Text("Konfirmasi Password") },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Lock,
-                        contentDescription = "Confirm Password Icon"
-                    )
-                },
+                label = { Text("Confirm Password") },
                 trailingIcon = {
                     TextButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
                         Text(
                             text = if (confirmPasswordVisible) "Hide" else "Show",
-                            style = MaterialTheme.typography.labelMedium
+                            color = TextWhite,
+                            fontSize = 12.sp
                         )
                     }
                 },
@@ -255,85 +242,87 @@ fun RegisterScreen(
                     }
                 ),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    focusedBorderColor = GhostBorderFocused,
+                    unfocusedBorderColor = GhostBorder,
+                    focusedTextColor = TextWhite,
+                    unfocusedTextColor = TextWhite,
+                    focusedLabelColor = TextWhite,
+                    unfocusedLabelColor = TextGray,
+                    cursorColor = TextWhite
                 ),
                 enabled = !isLoading
             )
 
-            // Error Message
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            // ==================== ERROR MESSAGE ====================
             AnimatedVisibility(visible = errorMessage != null) {
                 Text(
                     text = errorMessage ?: "",
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(top = 8.dp)
+                    color = ErrorRed,
+                    fontSize = 14.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(bottom = 16.dp)
                 )
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // Register Button
+            // ==================== REGISTER BUTTON (HIGH CONTRAST) ====================
             Button(
                 onClick = { viewModel.register(name, email, password, confirmPassword) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.White,
+                    contentColor = NavyDeep
+                ),
                 enabled = !isLoading
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onPrimary,
+                        color = NavyDeep,
                         strokeWidth = 2.dp
                     )
                 } else {
                     Text(
-                        text = "Daftar",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Login Link
-            Row(
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Sudah punya akun? ",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                TextButton(
-                    onClick = onNavigateToLogin,
-                    enabled = !isLoading
-                ) {
-                    Text(
-                        text = "Login di sini",
+                        text = "Register",
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
             }
 
             Spacer(modifier = Modifier.height(32.dp))
-        }
 
-        // Loading Overlay
-        if (isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize(),
-                contentAlignment = Alignment.Center
+            // ==================== FOOTER ====================
+            Row(
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // Transparent background overlay can be added here if needed
+                Text(
+                    text = "Already have an account? ",
+                    fontSize = 14.sp,
+                    color = TextGray
+                )
+                TextButton(
+                    onClick = onNavigateToLogin,
+                    enabled = !isLoading,
+                    contentPadding = PaddingValues(0.dp)
+                ) {
+                    Text(
+                        text = "Sign In",
+                        fontWeight = FontWeight.Bold,
+                        color = TextWhite,
+                        fontSize = 14.sp
+                    )
+                }
             }
-        }
+            
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
-
-
+}

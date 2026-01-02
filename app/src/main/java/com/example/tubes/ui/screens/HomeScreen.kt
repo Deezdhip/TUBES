@@ -3,16 +3,16 @@ package com.example.tubes.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,6 +31,11 @@ import com.example.tubes.viewmodel.TaskViewModel
 import com.example.tubes.ui.components.AddTaskDialog
 import com.example.tubes.viewmodel.AuthViewModel
 import kotlinx.coroutines.launch
+import android.graphics.BitmapFactory
+import android.util.Base64
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.foundation.Image
+import androidx.compose.ui.layout.ContentScale
 
 /**
  * Modern Project Manager Style - HomeScreen
@@ -41,12 +46,15 @@ import kotlinx.coroutines.launch
 fun HomeScreen(
     onNavigateToTimer: (String) -> Unit,
     onNavigateToRecycleBin: () -> Unit,
+    onNavigateToCategory: (String) -> Unit = {},
     onLogout: () -> Unit,
     viewModel: TaskViewModel = viewModel(),
     authViewModel: AuthViewModel = viewModel(),
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
+    val userPhotoBase64 by viewModel.currentUserPhoto.collectAsState()
     
     var showDialog by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
@@ -98,226 +106,296 @@ fun HomeScreen(
                                 tasks.filter { it.title.contains(searchQuery, ignoreCase = true) }
                             }
                             
-                            LazyVerticalGrid(
-                                columns = GridCells.Fixed(2),
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(Background),
-                                contentPadding = PaddingValues(16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            // ==================== PULL TO REFRESH ====================
+                            PullToRefreshBox(
+                                isRefreshing = isRefreshing,
+                                onRefresh = { viewModel.refreshData() },
+                                modifier = Modifier.fillMaxSize()
                             ) {
-                                // ==================== HEADER (FULL WIDTH) ====================
-                                item(span = { GridItemSpan(2) }) {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 8.dp, vertical = 8.dp)
-                                    ) {
-                                        // App bar with menu
+                                LazyColumn(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(Background),
+                                    contentPadding = PaddingValues(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    // ==================== HEADER (FULL WIDTH) ====================
+                                    item {
+                                        // Decode Base64 to Bitmap for profile photo
+                                        val profileBitmap = remember(userPhotoBase64) {
+                                            userPhotoBase64?.let { base64 ->
+                                                try {
+                                                    val bytes = Base64.decode(base64, Base64.DEFAULT)
+                                                    BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                                                } catch (e: Exception) {
+                                                    null
+                                                }
+                                            }
+                                        }
+                                        
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 8.dp, vertical = 8.dp)
+                                        ) {
+                                            // ==================== TOP BAR ====================
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                // Menu icon - Navigate to RecycleBin
+                                                IconButton(
+                                                    onClick = { onNavigateToRecycleBin() }
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Menu,
+                                                        contentDescription = "Menu",
+                                                        tint = TextDark,
+                                                        modifier = Modifier.size(24.dp)
+                                                    )
+                                                }
+                                                
+                                                // Date display
+                                                Text(
+                                                    text = java.time.LocalDate.now().format(
+                                                        java.time.format.DateTimeFormatter.ofPattern("EEEE, dd MMM")
+                                                    ),
+                                                    fontSize = 14.sp,
+                                                    color = TextSecondary
+                                                )
+                                                
+                                                // Profile icon - Navigate to Profile tab (SIMPLE ICON, NO PHOTO)
+                                                IconButton(
+                                                    onClick = { selectedTab = 3 }
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Rounded.Person,
+                                                        contentDescription = "Profile",
+                                                        tint = NavyDeep,
+                                                        modifier = Modifier.size(28.dp)
+                                                    )
+                                                }
+                                            }
+                                            
+                                            Spacer(modifier = Modifier.height(16.dp))
+                                            
+                                            // ==================== WELCOME CARD (NAVY BLUE) ====================
+                                            Card(
+                                                modifier = Modifier
+                                                    .fillMaxWidth(),
+                                                shape = RoundedCornerShape(32.dp),
+                                                colors = CardDefaults.cardColors(
+                                                    containerColor = NavyDeep
+                                                ),
+                                                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(24.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    // Left: Welcome Text (White)
+                                                    Column(
+                                                        modifier = Modifier.weight(1f)
+                                                    ) {
+                                                        Text(
+                                                            text = "Welcome back,",
+                                                            fontSize = 14.sp,
+                                                            color = Color.White.copy(alpha = 0.7f)
+                                                        )
+                                                        Spacer(modifier = Modifier.height(4.dp))
+                                                        Text(
+                                                            text = userName,
+                                                            fontSize = 26.sp,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = Color.White
+                                                        )
+                                                        Spacer(modifier = Modifier.height(8.dp))
+                                                        Text(
+                                                            text = greeting,
+                                                            fontSize = 13.sp,
+                                                            color = Color.White.copy(alpha = 0.6f)
+                                                        )
+                                                    }
+                                                    
+                                                    Spacer(modifier = Modifier.width(16.dp))
+                                                    
+                                                    // Right: Square Profile Photo (90dp)
+                                                    Surface(
+                                                        modifier = Modifier.size(90.dp),
+                                                        shape = RoundedCornerShape(20.dp),
+                                                        color = Color.White.copy(alpha = 0.15f)
+                                                    ) {
+                                                        Box(
+                                                            modifier = Modifier.fillMaxSize(),
+                                                            contentAlignment = Alignment.Center
+                                                        ) {
+                                                            if (profileBitmap != null) {
+                                                                Image(
+                                                                    bitmap = profileBitmap.asImageBitmap(),
+                                                                    contentDescription = "Profile Picture",
+                                                                    modifier = Modifier
+                                                                        .fillMaxSize()
+                                                                        .clip(RoundedCornerShape(20.dp)),
+                                                                    contentScale = ContentScale.Crop
+                                                                )
+                                                            } else {
+                                                                // Placeholder: Grey box with white person icon
+                                                                Icon(
+                                                                    imageVector = Icons.Rounded.Person,
+                                                                    contentDescription = "No Photo",
+                                                                    tint = Color.White.copy(alpha = 0.8f),
+                                                                    modifier = Modifier.size(48.dp)
+                                                                )
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    
+                                    // ==================== SEARCH BAR (FULL WIDTH) ====================
+                                    item {
+                                        Card(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 8.dp)
+                                                .shadow(
+                                                    elevation = 8.dp,
+                                                    shape = RoundedCornerShape(50.dp),
+                                                    ambientColor = Color.Black.copy(alpha = 0.1f)
+                                                ),
+                                            shape = RoundedCornerShape(50.dp),
+                                            colors = CardDefaults.cardColors(
+                                                containerColor = SurfaceWhite
+                                            )
+                                        ) {
+                                            OutlinedTextField(
+                                                value = searchQuery,
+                                                onValueChange = { searchQuery = it },
+                                                modifier = Modifier.fillMaxWidth(),
+                                                placeholder = { 
+                                                    Text(
+                                                        "Search tasks...", 
+                                                        color = TextSecondary
+                                                    ) 
+                                                },
+                                                leadingIcon = { 
+                                                    Icon(
+                                                        Icons.Default.Search, 
+                                                        "Search", 
+                                                        tint = TextSecondary
+                                                    ) 
+                                                },
+                                                shape = RoundedCornerShape(50.dp),
+                                                colors = OutlinedTextFieldDefaults.colors(
+                                                    focusedContainerColor = SurfaceWhite,
+                                                    unfocusedContainerColor = SurfaceWhite,
+                                                    focusedBorderColor = Color.Transparent,
+                                                    unfocusedBorderColor = Color.Transparent,
+                                                    focusedTextColor = TextDark,
+                                                    unfocusedTextColor = TextDark
+                                                ),
+                                                singleLine = true
+                                            )
+                                        }
+                                    }
+                                    
+                                    // ==================== SECTION HEADER (FULL WIDTH) ====================
+                                    item {
                                         Row(
-                                            modifier = Modifier.fillMaxWidth(),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 8.dp, vertical = 12.dp),
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            // Menu icon - Navigate to RecycleBin
-                                            IconButton(
-                                                onClick = { onNavigateToRecycleBin() }
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Menu,
-                                                    contentDescription = "Recycle Bin",
-                                                    tint = TextDark,
-                                                    modifier = Modifier.size(24.dp)
-                                                )
-                                            }
-                                            
                                             Text(
-                                                text = "Home",
+                                                text = "Your Tasks",
                                                 fontSize = 18.sp,
                                                 fontWeight = FontWeight.SemiBold,
                                                 color = TextDark
                                             )
-                                            
-                                            // Profile avatar - Navigate to Profile tab
+                                            Text(
+                                                text = "${visibleTasks.size} tasks",
+                                                fontSize = 14.sp,
+                                                color = TextSecondary
+                                            )
+                                        }
+                                    }
+                                    
+                                    // ==================== TASK GRID ====================
+                                    if (visibleTasks.isEmpty()) {
+                                        item {
                                             Box(
                                                 modifier = Modifier
-                                                    .size(36.dp)
-                                                    .clip(CircleShape)
-                                                    .background(AccentBlue)
-                                                    .clickable { selectedTab = 3 },
+                                                    .fillMaxWidth()
+                                                    .padding(vertical = 48.dp),
                                                 contentAlignment = Alignment.Center
                                             ) {
-                                                Text(
-                                                    text = userName.firstOrNull()?.toString()?.uppercase() ?: "U",
-                                                    color = TextOnBlue,
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 14.sp
-                                                )
-                                            }
-                                        }
-                                        
-                                        Spacer(modifier = Modifier.height(24.dp))
-                                        
-                                        // Greeting
-                                        Text(
-                                            text = "Hi ${userName}!",
-                                            fontSize = 28.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = TextDark
-                                        )
-                                        Text(
-                                            text = greeting,
-                                            fontSize = 14.sp,
-                                            color = TextSecondary
-                                        )
-                                    }
-                                }
-                                
-                                // ==================== SEARCH BAR (FULL WIDTH) ====================
-                                item(span = { GridItemSpan(2) }) {
-                                    Card(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 8.dp)
-                                            .shadow(
-                                                elevation = 8.dp,
-                                                shape = RoundedCornerShape(50.dp),
-                                                ambientColor = Color.Black.copy(alpha = 0.1f)
-                                            ),
-                                        shape = RoundedCornerShape(50.dp),
-                                        colors = CardDefaults.cardColors(
-                                            containerColor = SurfaceWhite
-                                        )
-                                    ) {
-                                        OutlinedTextField(
-                                            value = searchQuery,
-                                            onValueChange = { searchQuery = it },
-                                            modifier = Modifier.fillMaxWidth(),
-                                            placeholder = { 
-                                                Text(
-                                                    "Search", 
-                                                    color = TextSecondary
-                                                ) 
-                                            },
-                                            leadingIcon = { 
-                                                Icon(
-                                                    Icons.Default.Search, 
-                                                    "Search", 
-                                                    tint = TextSecondary
-                                                ) 
-                                            },
-                                            shape = RoundedCornerShape(50.dp),
-                                            colors = OutlinedTextFieldDefaults.colors(
-                                                focusedContainerColor = SurfaceWhite,
-                                                unfocusedContainerColor = SurfaceWhite,
-                                                focusedBorderColor = Color.Transparent,
-                                                unfocusedBorderColor = Color.Transparent,
-                                                focusedTextColor = TextDark,
-                                                unfocusedTextColor = TextDark
-                                            ),
-                                            singleLine = true
-                                        )
-                                    }
-                                }
-                                
-                                // ==================== WELCOME BANNER (FULL WIDTH) ====================
-                                item(span = { GridItemSpan(2) }) {
-                                    WelcomeBanner()
-                                }
-                                
-                                // ==================== SECTION HEADER (FULL WIDTH) ====================
-                                item(span = { GridItemSpan(2) }) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 8.dp, vertical = 8.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = "Ongoing Projects",
-                                            fontSize = 18.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = TextDark
-                                        )
-                                        Text(
-                                            text = "view all",
-                                            fontSize = 14.sp,
-                                            color = TextSecondary,
-                                            modifier = Modifier.clickable { /* TODO */ }
-                                        )
-                                    }
-                                }
-                                
-                                // ==================== TASK GRID ====================
-                                if (visibleTasks.isEmpty()) {
-                                    item(span = { GridItemSpan(2) }) {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(vertical = 48.dp),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Column(
-                                                horizontalAlignment = Alignment.CenterHorizontally
-                                            ) {
-                                                Text(
-                                                    text = "🎉",
-                                                    fontSize = 48.sp
-                                                )
-                                                Spacer(modifier = Modifier.height(8.dp))
-                                                Text(
-                                                    text = if (searchQuery.isBlank()) 
-                                                        "No tasks yet. Add one!" 
-                                                    else 
-                                                        "No tasks found",
-                                                    color = TextSecondary,
-                                                    fontSize = 16.sp
-                                                )
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    items(
-                                        items = visibleTasks,
-                                        key = { it.id }
-                                    ) { task ->
-                                        TaskItem(
-                                            task = task,
-                                            // Klik Card = Navigasi ke Timer Screen dengan Task ID
-                                            onClick = { t -> 
-                                                onNavigateToTimer(t.id)
-                                            },
-                                            // Menu: Mark Complete/Incomplete = Toggle status
-                                            onCheckClick = { t, _ ->
-                                                viewModel.toggleTaskStatus(t)
-                                            },
-                                            onDeleteClick = { t ->
-                                                viewModel.deleteTask(t.id) 
-                                                scope.launch {
-                                                    val result = snackbarHostState.showSnackbar(
-                                                        message = "Task moved to trash",
-                                                        actionLabel = "UNDO",
-                                                        duration = SnackbarDuration.Short
+                                                Column(
+                                                    horizontalAlignment = Alignment.CenterHorizontally
+                                                ) {
+                                                    Text(
+                                                        text = "🎉",
+                                                        fontSize = 48.sp
                                                     )
-                                                    if (result == SnackbarResult.ActionPerformed) {
-                                                        viewModel.undoDelete()
-                                                    }
+                                                    Spacer(modifier = Modifier.height(8.dp))
+                                                    Text(
+                                                        text = if (searchQuery.isBlank()) 
+                                                            "No tasks yet. Add one!" 
+                                                        else 
+                                                            "No tasks found",
+                                                        color = TextSecondary,
+                                                        fontSize = 16.sp
+                                                    )
                                                 }
-                                            },
-                                            onPinClick = { t ->
-                                                viewModel.togglePin(t) 
                                             }
-                                        )
+                                        }
+                                    } else {
+                                        items(
+                                            items = visibleTasks,
+                                            key = { it.id }
+                                        ) { task ->
+                                            TaskItem(
+                                                task = task,
+                                                // Klik Card = Navigasi ke Timer Screen dengan Task ID
+                                                onClick = { t -> 
+                                                    onNavigateToTimer(t.id)
+                                                },
+                                                // Menu: Mark Complete/Incomplete = Toggle status
+                                                onCheckClick = { t, _ ->
+                                                    viewModel.toggleTaskStatus(t)
+                                                },
+                                                onDeleteClick = { t ->
+                                                    viewModel.deleteTask(t.id) 
+                                                    scope.launch {
+                                                        val result = snackbarHostState.showSnackbar(
+                                                            message = "Task moved to trash",
+                                                            actionLabel = "UNDO",
+                                                            duration = SnackbarDuration.Short
+                                                        )
+                                                        if (result == SnackbarResult.ActionPerformed) {
+                                                            viewModel.undoDelete()
+                                                        }
+                                                    }
+                                                },
+                                                onPinClick = { t ->
+                                                    viewModel.togglePin(t) 
+                                                }
+                                            )
+                                        }
+                                    }
+                                    
+                                    // Bottom spacing
+                                    item {
+                                        Spacer(modifier = Modifier.height(80.dp))
                                     }
                                 }
-                                
-                                // Bottom spacing
-                                item(span = { GridItemSpan(2) }) {
-                                    Spacer(modifier = Modifier.height(80.dp))
-                                }
-                            }
+                            } // End PullToRefreshBox
                         }
                         
                         is TaskUiState.Error -> {
@@ -361,6 +439,9 @@ fun HomeScreen(
                         onLogout = {
                             authRepository.logout()
                             onLogout()
+                        },
+                        onNavigateToCategory = { category ->
+                            onNavigateToCategory(category)
                         }
                     )
                 }

@@ -128,14 +128,15 @@ class AuthViewModel(
 
     /**
      * Update user profile (name and/or photo)
+     * Uses Base64 encoding for photo (no Firebase Storage)
      */
-    fun updateProfile(name: String, photoUri: android.net.Uri?) {
+    fun updateProfile(name: String, photoUri: android.net.Uri?, context: android.content.Context? = null) {
         viewModelScope.launch {
             _authState.value = AuthUiState.Loading
             try {
-                // Update photo if provided
-                if (photoUri != null) {
-                    authRepository.uploadProfileImage(photoUri)
+                // Update photo if provided (requires Context for Base64 encoding)
+                if (photoUri != null && context != null) {
+                    authRepository.uploadProfileImage(photoUri, context)
                 }
                 
                 // Update name if provided and different

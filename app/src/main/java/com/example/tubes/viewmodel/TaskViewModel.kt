@@ -14,7 +14,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 
 // ==================== UI STATE ====================
 
@@ -54,6 +58,11 @@ class TaskViewModel : ViewModel() {
     // ==================== DEPENDENCIES ====================
     
     private val repository = TaskRepository()
+    private val auth = FirebaseAuth.getInstance()
+    private val firestore = FirebaseFirestore.getInstance()
+    
+    // Listener registration for cleanup
+    private var userPhotoListener: ListenerRegistration? = null
 
     // ==================== INSTANT DELETE: TEMPORARY HIDDEN LIST ====================
     
@@ -113,6 +122,18 @@ class TaskViewModel : ViewModel() {
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
+    /**
+     * StateFlow untuk Pull-to-Refresh indicator
+     */
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+    
+    /**
+     * StateFlow untuk user profile photo (Base64 string dari Firestore)
+     */
+    private val _currentUserPhoto = MutableStateFlow<String?>(null)
+    val currentUserPhoto: StateFlow<String?> = _currentUserPhoto.asStateFlow()
+
     // ==================== SORTING COMPARATOR ====================
     
     /**
@@ -135,6 +156,42 @@ class TaskViewModel : ViewModel() {
     init {
         loadTasks()
         loadDeletedTasks()
+        loadUserPhoto()
+    }
+    
+    /**
+     * Load user profile photo with real-time listener
+     */
+    private fun loadUserPhoto() {
+        val userId = auth.currentUser?.uid ?: return
+        
+        userPhotoListener = firestore.collection("users")
+            .document(userId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.e(TAG, "Error listening to user photo", error)
+                    return@addSnapshotListener
+                }
+                
+                val photoBase64 = snapshot?.getString("photoUrl")
+                _currentUserPhoto.value = photoBase64
+                Log.d(TAG, "User photo updated: ${if (photoBase64 != null) "${photoBase64.take(30)}..." else "null"}")
+            }
+    }
+
+    /**
+     * Pull-to-Refresh: Simulasi refresh dengan delay.
+     * Karena Firestore sudah real-time, kita hanya perlu visual feedback.
+     */
+    fun refreshData() {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            // Simulasi loading sebentar agar user 'merasakan' refresh
+            delay(1500)
+            // Data sudah live dari Firestore, jadi tidak perlu reload manual
+            _isRefreshing.value = false
+            Log.d(TAG, "Pull-to-Refresh completed")
+        }
     }
 
     /**
