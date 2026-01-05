@@ -1,6 +1,7 @@
 package com.example.tubes.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -8,7 +9,9 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Email
+import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,17 +31,18 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.tubes.viewmodel.AuthUiState
 import com.example.tubes.viewmodel.AuthViewModel
 
-// ==================== WARNA TEMA ULTRA-MINIMALIST ====================
+// ==================== CLEAN DARK THEME COLORS ====================
 private val NavyDeep = Color(0xFF0D1B3E)
-private val GhostBorder = Color.White.copy(alpha = 0.5f)
-private val GhostBorderFocused = Color.White
+private val GlassWhite = Color.White.copy(alpha = 0.08f)
+private val AccentCyan = Color(0xFF00D4FF)
 private val TextWhite = Color.White
-private val TextGray = Color.Gray
+private val TextMuted = Color.White.copy(alpha = 0.6f)
 private val ErrorRed = Color(0xFFFF6B6B)
 
 /**
- * RegisterScreen - Ultra-Minimalist Dark Aesthetic
- * Ghost Input Style: Transparent inputs with subtle white borders
+ * RegisterScreen - Clean Dark Premium
+ * 
+ * Design: Solid NavyDeep background, glassmorphism inputs, capsule button
  */
 @Composable
 fun RegisterScreen(
@@ -66,46 +70,58 @@ fun RegisterScreen(
     val isLoading = authState is AuthUiState.Loading
     val errorMessage = (authState as? AuthUiState.Error)?.message
 
-    Surface(
-        modifier = modifier.fillMaxSize(),
-        color = NavyDeep
+    // ==================== SOLID BACKGROUND ====================
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(NavyDeep)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 32.dp)
                 .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            horizontalAlignment = Alignment.Start
         ) {
-            // ==================== LOGO ====================
-            Icon(
-                imageVector = Icons.Rounded.CheckCircle,
-                contentDescription = "Logo",
-                tint = TextWhite,
-                modifier = Modifier.size(80.dp)
-            )
+            Spacer(modifier = Modifier.height(80.dp))
             
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            // ==================== TITLE ====================
+            // ==================== HEADER ====================
             Text(
-                text = "FocusTask",
-                fontSize = 28.sp,
+                text = "Create",
+                fontSize = 40.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextWhite
+                color = TextWhite,
+                lineHeight = 44.sp
+            )
+            Text(
+                text = "Account",
+                fontSize = 40.sp,
+                fontWeight = FontWeight.Bold,
+                color = AccentCyan,
+                lineHeight = 44.sp
+            )
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            Text(
+                text = "Start your productivity journey today",
+                fontSize = 14.sp,
+                color = TextMuted
             )
 
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(48.dp))
 
-            // ==================== NAME INPUT (GHOST STYLE) ====================
-            OutlinedTextField(
+            // ==================== NAME INPUT ====================
+            TextField(
                 value = name,
                 onValueChange = { 
                     name = it
                     if (errorMessage != null) viewModel.clearError()
                 },
-                label = { Text("Full Name") },
+                placeholder = { Text("Full Name", color = TextMuted) },
+                leadingIcon = {
+                    Icon(Icons.Rounded.Person, null, tint = TextMuted)
+                },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
                 singleLine = true,
@@ -116,30 +132,31 @@ fun RegisterScreen(
                 keyboardActions = KeyboardActions(
                     onNext = { focusManager.moveFocus(FocusDirection.Down) }
                 ),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    focusedBorderColor = GhostBorderFocused,
-                    unfocusedBorderColor = GhostBorder,
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = GlassWhite,
+                    unfocusedContainerColor = GlassWhite,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
                     focusedTextColor = TextWhite,
                     unfocusedTextColor = TextWhite,
-                    focusedLabelColor = TextWhite,
-                    unfocusedLabelColor = TextGray,
-                    cursorColor = TextWhite
+                    cursorColor = AccentCyan
                 ),
                 enabled = !isLoading
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // ==================== EMAIL INPUT (GHOST STYLE) ====================
-            OutlinedTextField(
+            // ==================== EMAIL INPUT ====================
+            TextField(
                 value = email,
                 onValueChange = { 
                     email = it
                     if (errorMessage != null) viewModel.clearError()
                 },
-                label = { Text("Email") },
+                placeholder = { Text("Email", color = TextMuted) },
+                leadingIcon = {
+                    Icon(Icons.Rounded.Email, null, tint = TextMuted)
+                },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
                 singleLine = true,
@@ -150,36 +167,38 @@ fun RegisterScreen(
                 keyboardActions = KeyboardActions(
                     onNext = { focusManager.moveFocus(FocusDirection.Down) }
                 ),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    focusedBorderColor = GhostBorderFocused,
-                    unfocusedBorderColor = GhostBorder,
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = GlassWhite,
+                    unfocusedContainerColor = GlassWhite,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
                     focusedTextColor = TextWhite,
                     unfocusedTextColor = TextWhite,
-                    focusedLabelColor = TextWhite,
-                    unfocusedLabelColor = TextGray,
-                    cursorColor = TextWhite
+                    cursorColor = AccentCyan
                 ),
                 enabled = !isLoading
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // ==================== PASSWORD INPUT (GHOST STYLE) ====================
-            OutlinedTextField(
+            // ==================== PASSWORD INPUT ====================
+            TextField(
                 value = password,
                 onValueChange = { 
                     password = it
                     if (errorMessage != null) viewModel.clearError()
                 },
-                label = { Text("Password") },
+                placeholder = { Text("Password", color = TextMuted) },
+                leadingIcon = {
+                    Icon(Icons.Rounded.Lock, null, tint = TextMuted)
+                },
                 trailingIcon = {
                     TextButton(onClick = { passwordVisible = !passwordVisible }) {
                         Text(
                             text = if (passwordVisible) "Hide" else "Show",
-                            color = TextWhite,
-                            fontSize = 12.sp
+                            color = AccentCyan,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
                         )
                     }
                 },
@@ -194,36 +213,38 @@ fun RegisterScreen(
                 keyboardActions = KeyboardActions(
                     onNext = { focusManager.moveFocus(FocusDirection.Down) }
                 ),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    focusedBorderColor = GhostBorderFocused,
-                    unfocusedBorderColor = GhostBorder,
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = GlassWhite,
+                    unfocusedContainerColor = GlassWhite,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
                     focusedTextColor = TextWhite,
                     unfocusedTextColor = TextWhite,
-                    focusedLabelColor = TextWhite,
-                    unfocusedLabelColor = TextGray,
-                    cursorColor = TextWhite
+                    cursorColor = AccentCyan
                 ),
                 enabled = !isLoading
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // ==================== CONFIRM PASSWORD INPUT (GHOST STYLE) ====================
-            OutlinedTextField(
+            // ==================== CONFIRM PASSWORD INPUT ====================
+            TextField(
                 value = confirmPassword,
                 onValueChange = { 
                     confirmPassword = it
                     if (errorMessage != null) viewModel.clearError()
                 },
-                label = { Text("Confirm Password") },
+                placeholder = { Text("Confirm Password", color = TextMuted) },
+                leadingIcon = {
+                    Icon(Icons.Rounded.Lock, null, tint = TextMuted)
+                },
                 trailingIcon = {
                     TextButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
                         Text(
                             text = if (confirmPasswordVisible) "Hide" else "Show",
-                            color = TextWhite,
-                            fontSize = 12.sp
+                            color = AccentCyan,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
                         )
                     }
                 },
@@ -241,21 +262,19 @@ fun RegisterScreen(
                         viewModel.register(name, email, password, confirmPassword)
                     }
                 ),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    focusedBorderColor = GhostBorderFocused,
-                    unfocusedBorderColor = GhostBorder,
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = GlassWhite,
+                    unfocusedContainerColor = GlassWhite,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
                     focusedTextColor = TextWhite,
                     unfocusedTextColor = TextWhite,
-                    focusedLabelColor = TextWhite,
-                    unfocusedLabelColor = TextGray,
-                    cursorColor = TextWhite
+                    cursorColor = AccentCyan
                 ),
                 enabled = !isLoading
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(32.dp))
             
             // ==================== ERROR MESSAGE ====================
             AnimatedVisibility(visible = errorMessage != null) {
@@ -264,21 +283,24 @@ fun RegisterScreen(
                     color = ErrorRed,
                     fontSize = 14.sp,
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(bottom = 16.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp)
                 )
             }
 
-            // ==================== REGISTER BUTTON (HIGH CONTRAST) ====================
+            // ==================== REGISTER BUTTON ====================
             Button(
                 onClick = { viewModel.register(name, email, password, confirmPassword) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(50),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color.White,
                     contentColor = NavyDeep
                 ),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp),
                 enabled = !isLoading
             ) {
                 if (isLoading) {
@@ -289,24 +311,27 @@ fun RegisterScreen(
                     )
                 } else {
                     Text(
-                        text = "Register",
+                        text = "Create Account",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.weight(1f))
 
             // ==================== FOOTER ====================
             Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 48.dp),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "Already have an account? ",
                     fontSize = 14.sp,
-                    color = TextGray
+                    color = TextMuted
                 )
                 TextButton(
                     onClick = onNavigateToLogin,
@@ -316,13 +341,11 @@ fun RegisterScreen(
                     Text(
                         text = "Sign In",
                         fontWeight = FontWeight.Bold,
-                        color = TextWhite,
+                        color = AccentCyan,
                         fontSize = 14.sp
                     )
                 }
             }
-            
-            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }

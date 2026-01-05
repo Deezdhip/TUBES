@@ -6,7 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.example.tubes.model.Task
 import com.example.tubes.repository.TaskRepository
 import com.example.tubes.util.DateUtils
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 
 /**
  * Data class untuk UI state statistik Dashboard
@@ -16,7 +18,7 @@ data class StatsUiState(
     val completedTasks: Int = 0,
     val pendingTasks: Int = 0,
     val overdueTasks: Int = 0,
-    val totalFocusMinutes: Int = 0,
+    val totalFocusMinutes: Int = 0, // Sekarang dari data asli, bukan hardcoded
     val tasksByCategory: Map<String, Int> = emptyMap(),
     val isLoading: Boolean = true,
     val error: String? = null,
@@ -28,6 +30,8 @@ data class StatsUiState(
  * 
  * REAL-TIME dengan Firestore!
  * Setiap perubahan di Firestore langsung update ke Dashboard.
+ * 
+ * FOCUS TIME: Sekarang menggunakan data asli dari focusTimeSpent, bukan hardcoded.
  */
 class StatisticsViewModel : ViewModel() {
     private val repository = TaskRepository()
@@ -53,7 +57,7 @@ class StatisticsViewModel : ViewModel() {
                 Log.d(TAG, "Task: ${task.title}")
                 Log.d(TAG, "  - isCompleted: ${task.isCompleted}")
                 Log.d(TAG, "  - progress: ${task.progress}")
-                Log.d(TAG, "  - safeProgress: ${safeProgress(task)}")
+                Log.d(TAG, "  - focusTimeSpent: ${task.focusTimeSpent}s")
                 Log.d(TAG, "  - isDone: ${isTaskDone(task)}")
             }
             
@@ -79,6 +83,13 @@ class StatisticsViewModel : ViewModel() {
                 (completed.toFloat() / total.toFloat()) * 100f
             } else 0f
 
+            // ============================================
+            // REAL-TIME FOCUS TRACKING
+            // Hitung total detik dari semua tugas, lalu bagi 60 untuk dapat menit
+            // ============================================
+            val totalSeconds = tasks.sumOf { it.focusTimeSpent }
+            val totalFocusMinutes = (totalSeconds / 60).toInt()
+            
             // DEBUG: Log hasil perhitungan
             Log.d(TAG, "----------------------------------------")
             Log.d(TAG, "CALCULATION RESULTS:")
@@ -86,6 +97,8 @@ class StatisticsViewModel : ViewModel() {
             Log.d(TAG, "  Completed: $completed")
             Log.d(TAG, "  Pending: $pending")
             Log.d(TAG, "  Percentage: ${percentage}%")
+            Log.d(TAG, "  Total Focus Seconds: $totalSeconds")
+            Log.d(TAG, "  Total Focus Minutes: $totalFocusMinutes")
             Log.d(TAG, "========================================")
             
             StatsUiState(
@@ -93,7 +106,7 @@ class StatisticsViewModel : ViewModel() {
                 completedTasks = completed,
                 pendingTasks = pending,
                 overdueTasks = overdue,
-                totalFocusMinutes = completed * 25,
+                totalFocusMinutes = totalFocusMinutes, // Sekarang dari data asli!
                 tasksByCategory = byCategory,
                 isLoading = false,
                 error = null,
@@ -105,6 +118,22 @@ class StatisticsViewModel : ViewModel() {
             started = SharingStarted.WhileSubscribed(5000L),
             initialValue = StatsUiState(isLoading = true)
         )
+
+    // ==================== PULL-TO-REFRESH ====================
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+    
+    /**
+     * Refresh function untuk Pull-to-Refresh.
+     * Karena data sudah real-time dari Firestore, ini hanya memberikan visual feedback.
+     */
+    fun refresh() {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            delay(1500) // Simulasi refresh visual
+            _isRefreshing.value = false
+        }
+    }
 
     /**
      * CEK APAKAH TASK SELESAI

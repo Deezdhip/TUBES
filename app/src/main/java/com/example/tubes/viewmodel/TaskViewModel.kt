@@ -159,6 +159,27 @@ class TaskViewModel : ViewModel() {
         loadUserPhoto()
     }
     
+    // ==================== PULL-TO-REFRESH ====================
+    
+    /**
+     * Refresh data untuk Pull-to-Refresh.
+     * Reload semua data dari repository.
+     */
+    fun refreshData() {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            try {
+                // Reload tasks - real-time listener akan otomatis update
+                loadTasks()
+                loadDeletedTasks()
+                // Delay untuk visual feedback
+                delay(1000)
+            } finally {
+                _isRefreshing.value = false
+            }
+        }
+    }
+    
     /**
      * Load user profile photo with real-time listener
      */
@@ -177,21 +198,6 @@ class TaskViewModel : ViewModel() {
                 _currentUserPhoto.value = photoBase64
                 Log.d(TAG, "User photo updated: ${if (photoBase64 != null) "${photoBase64.take(30)}..." else "null"}")
             }
-    }
-
-    /**
-     * Pull-to-Refresh: Simulasi refresh dengan delay.
-     * Karena Firestore sudah real-time, kita hanya perlu visual feedback.
-     */
-    fun refreshData() {
-        viewModelScope.launch {
-            _isRefreshing.value = true
-            // Simulasi loading sebentar agar user 'merasakan' refresh
-            delay(1500)
-            // Data sudah live dari Firestore, jadi tidak perlu reload manual
-            _isRefreshing.value = false
-            Log.d(TAG, "Pull-to-Refresh completed")
-        }
     }
 
     /**
@@ -285,58 +291,52 @@ class TaskViewModel : ViewModel() {
         }
     }
 
-    // ==================== UPDATE OPERATIONS (OPTIMISTIC) ====================
+    // ==================== UPDATE OPERATIONS (NO OPTIMISTIC UPDATE) ====================
 
     /**
-     * Mengupdate status penyelesaian task dengan Optimistic Update
+     * Mengupdate status penyelesaian task - TANPA Optimistic Update
+     * 
+     * PENTING: Fungsi ini HANYA mengirim update ke Firebase.
+     * UI akan di-update secara OTOMATIS oleh real-time listener di loadTasks().
      */
     fun updateTaskStatus(taskId: String, isCompleted: Boolean) {
-        val currentState = _rawTasksState.value
-        if (currentState !is TaskUiState.Success) return
-        
-        val originalList = currentState.tasks
-        
-        // Optimistic Update
-        val updatedList = originalList.map { task ->
-            if (task.id == taskId) task.copy(isCompleted = isCompleted) else task
+        if (taskId.isBlank()) {
+            Log.e(TAG, "Cannot update task with blank ID")
+            return
         }
         
-        _rawTasksState.value = TaskUiState.Success(updatedList)
-        Log.d(TAG, "Optimistic Update: Status changed for $taskId to $isCompleted")
+        Log.d(TAG, "Updating task $taskId: isCompleted -> $isCompleted")
 
         viewModelScope.launch {
             try {
                 repository.updateTaskStatus(taskId, isCompleted)
+                Log.d(TAG, "Task status updated in Firebase - waiting for listener update")
+                // TIDAK ADA manipulasi _rawTasksState di sini
+                // Real-time listener akan otomatis update UI
             } catch (e: Exception) {
-                Log.e(TAG, "Sync Failed, Rolling back", e)
-                _rawTasksState.value = TaskUiState.Success(originalList)
+                Log.e(TAG, "Update status failed", e)
                 _errorMessage.value = "Gagal mengupdate status: ${e.message}"
             }
         }
     }
 
     /**
-     * TOGGLE TASK STATUS dengan Optimistic Update
+     * TOGGLE TASK STATUS - TANPA Optimistic Update
+     * 
+     * PENTING: Fungsi ini HANYA mengirim update ke Firebase.
+     * UI akan di-update secara OTOMATIS oleh real-time listener di loadTasks().
+     * Ini menjamin data 100% SINKRON dengan Database.
      */
     fun toggleTaskStatus(task: Task) {
-        val currentState = _rawTasksState.value
-        if (currentState !is TaskUiState.Success) return
+        if (task.id.isBlank()) {
+            Log.e(TAG, "Cannot toggle task with blank ID")
+            return
+        }
         
-        val originalList = currentState.tasks
         val newStatus = !task.isCompleted
         val newProgress = if (newStatus) 1.0f else 0.0f
         
-        Log.d(TAG, "Toggling task '${task.title}': isCompleted $newStatus, progress $newProgress")
-        
-        // Optimistic Update
-        val updatedList = originalList.map { t ->
-            if (t.id == task.id) t.copy(
-                isCompleted = newStatus,
-                progress = newProgress
-            ) else t
-        }
-        
-        _rawTasksState.value = TaskUiState.Success(updatedList)
+        Log.d(TAG, "Toggling task '${task.title}': isCompleted -> $newStatus, progress -> $newProgress")
 
         viewModelScope.launch {
             try {
@@ -345,10 +345,11 @@ class TaskViewModel : ViewModel() {
                     progress = newProgress
                 )
                 repository.updateTask(updatedTask)
-                Log.d(TAG, "Task updated in Firebase: ${task.title}")
+                Log.d(TAG, "Task updated in Firebase: ${task.title} - waiting for listener update")
+                // TIDAK ADA manipulasi _rawTasksState di sini
+                // Real-time listener akan otomatis update UI
             } catch (e: Exception) {
-                Log.e(TAG, "Toggle failed, rolling back", e)
-                _rawTasksState.value = TaskUiState.Success(originalList)
+                Log.e(TAG, "Toggle failed", e)
                 _errorMessage.value = "Gagal mengupdate task: ${e.message}"
             }
         }
@@ -358,26 +359,22 @@ class TaskViewModel : ViewModel() {
      * Toggle status pin task dengan Optimistic Update
      */
     fun togglePin(task: Task) {
-        val currentState = _rawTasksState.value
-        if (currentState !is TaskUiState.Success) return
-        
-        val originalList = currentState.tasks
-        val newPinStatus = !task.isPinned
-        
-        // Optimistic Update
-        val updatedList = originalList.map { t ->
-            if (t.id == task.id) t.copy(isPinned = newPinStatus) else t
+        if (task.id.isBlank()) {
+            Log.e(TAG, "Cannot toggle pin for task with blank ID")
+            return
         }
         
-        _rawTasksState.value = TaskUiState.Success(updatedList)
-        Log.d(TAG, "Optimistic Update: Pin changed for ${task.id} to $newPinStatus")
+        val newPinStatus = !task.isPinned
+        Log.d(TAG, "Toggling pin for '${task.title}': isPinned -> $newPinStatus")
 
         viewModelScope.launch {
             try {
                 repository.togglePin(task.id, newPinStatus)
+                Log.d(TAG, "Pin updated in Firebase - waiting for listener update")
+                // TIDAK ADA manipulasi _rawTasksState di sini
+                // Real-time listener akan otomatis update UI
             } catch (e: Exception) {
-                Log.e(TAG, "Sync Failed, Rolling back", e)
-                _rawTasksState.value = TaskUiState.Success(originalList)
+                Log.e(TAG, "Toggle pin failed", e)
                 _errorMessage.value = "Gagal mengubah pin: ${e.message}"
             }
         }

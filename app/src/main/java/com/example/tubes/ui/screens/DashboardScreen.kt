@@ -4,23 +4,22 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -28,227 +27,307 @@ import com.example.tubes.ui.theme.*
 import com.example.tubes.viewmodel.StatisticsViewModel
 
 /**
- * Modern Project Manager Style - DashboardScreen
- * Deep Blue Theme dengan curved header dan circular progress
+ * DashboardScreen - Stacked Insight Cards Design
+ * 
+ * Professional analytics dashboard with:
+ * - Hero Metric Card (Focus Time)
+ * - Productivity Rate Card
+ * - Category Breakdown Card
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
     viewModel: StatisticsViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
     
-    // Animated progress value
+    // Animated progress
     val animatedProgress by animateFloatAsState(
         targetValue = uiState.completionPercentage / 100f,
         animationSpec = tween(durationMillis = 1000),
         label = "progress"
     )
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Background)
-    ) {
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 100.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+    // Format focus time
+    val focusHours = uiState.totalFocusMinutes / 60
+    val focusMinutes = uiState.totalFocusMinutes % 60
+    val focusTimeText = if (focusHours > 0) "${focusHours}h ${focusMinutes}m" else "${focusMinutes}m"
+
+    Scaffold(
+        containerColor = Background
+    ) { paddingValues ->
+        
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = { viewModel.refresh() },
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
         ) {
-            // ==================== DEEP BLUE HEADER ====================
-            item(span = { GridItemSpan(2) }) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(400.dp)
-                        .background(
-                            color = NavyDeep,
-                            shape = RoundedCornerShape(
-                                bottomStart = 32.dp,
-                                bottomEnd = 32.dp
-                            )
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 24.dp)
-                            .padding(top = 24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // ==================== HEADER ====================
+                item {
+                    Text(
+                        text = "Dashboard",
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = NavyDeep,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
+                
+                // ==================== CARD 1: HERO METRIC (Total Focus) ====================
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
-                        // Title at top
-                        Text(
-                            text = "My Progress",
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                        
-                        Spacer(modifier = Modifier.height(32.dp))
-                        
-                        // Circular Progress Indicator - Larger & High Contrast
                         Box(
-                            modifier = Modifier.size(180.dp),
-                            contentAlignment = Alignment.Center
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    brush = Brush.horizontalGradient(
+                                        colors = listOf(NavyDeep, AccentBlue)
+                                    ),
+                                    shape = RoundedCornerShape(24.dp)
+                                )
+                                .padding(24.dp)
                         ) {
-                            // Background circle (Track) - White transparent
-                            CircularProgressIndicator(
-                                progress = { 1f },
-                                modifier = Modifier.size(180.dp),
-                                strokeWidth = 14.dp,
-                                color = Color.White.copy(alpha = 0.15f),
-                                trackColor = Color.Transparent,
-                                strokeCap = StrokeCap.Round
+                            // Decorative icon
+                            Icon(
+                                imageVector = Icons.Rounded.Bolt,
+                                contentDescription = null,
+                                tint = Color.White.copy(alpha = 0.1f),
+                                modifier = Modifier
+                                    .size(120.dp)
+                                    .align(Alignment.CenterEnd)
                             )
                             
-                            // Progress circle - Cyan/Mint for high contrast
-                            CircularProgressIndicator(
-                                progress = { animatedProgress },
-                                modifier = Modifier.size(180.dp),
-                                strokeWidth = 14.dp,
-                                color = Color(0xFF00E5FF), // Bright Cyan
-                                trackColor = Color.Transparent,
-                                strokeCap = StrokeCap.Round
-                            )
-                            
-                            // Percentage text in center
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
+                            Column {
                                 Text(
-                                    text = "${(animatedProgress * 100).toInt()}%",
+                                    text = "Total Focus Time",
+                                    fontSize = 14.sp,
+                                    color = Color.White.copy(alpha = 0.8f),
+                                    fontWeight = FontWeight.Medium
+                                )
+                                
+                                Spacer(modifier = Modifier.height(8.dp))
+                                
+                                Text(
+                                    text = focusTimeText,
                                     fontSize = 48.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White
                                 )
+                                
+                                Spacer(modifier = Modifier.height(4.dp))
+                                
                                 Text(
-                                    text = "Completed",
+                                    text = "${uiState.completedTasks} tasks completed",
                                     fontSize = 14.sp,
                                     color = Color.White.copy(alpha = 0.7f)
                                 )
                             }
                         }
-                        
-                        Spacer(modifier = Modifier.height(24.dp))
-                        
-                        // Weekly Progress label
-                        Text(
-                            text = "Weekly Progress",
-                            fontSize = 16.sp,
-                            color = Color.White.copy(alpha = 0.8f),
-                            fontWeight = FontWeight.Medium
-                        )
-                        
-                        // Bottom spacer to push content away from curved edge
-                        Spacer(modifier = Modifier.height(48.dp))
                     }
                 }
-            }
-            
-            // ==================== STATS CARDS HEADER ====================
-            item(span = { GridItemSpan(2) }) {
-                Text(
-                    text = "Overview",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = TextDark,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                )
-            }
-            
-            // ==================== STAT CARDS ====================
-            // Total Tasks
-            item {
-                StatCard(
-                    icon = Icons.Outlined.Assignment,
-                    title = "Total Tasks",
-                    value = "${uiState.totalTasks}",
-                    iconColor = AccentBlue,
-                    modifier = Modifier.padding(start = 16.dp)
-                )
-            }
-            
-            // Completed
-            item {
-                StatCard(
-                    icon = Icons.Outlined.CheckCircle,
-                    title = "Completed",
-                    value = "${uiState.completedTasks}",
-                    iconColor = SuccessGreen,
-                    modifier = Modifier.padding(end = 16.dp)
-                )
-            }
-            
-            // Pending
-            item {
-                StatCard(
-                    icon = Icons.Outlined.Schedule,
-                    title = "Pending",
-                    value = "${uiState.pendingTasks}",
-                    iconColor = WarningOrange,
-                    modifier = Modifier.padding(start = 16.dp)
-                )
-            }
-            
-            // Focus Time
-            item {
-                StatCard(
-                    icon = Icons.Outlined.Timer,
-                    title = "Focus Time",
-                    value = "${uiState.totalFocusMinutes}m",
-                    iconColor = CategoryStudy,
-                    modifier = Modifier.padding(end = 16.dp)
-                )
-            }
-            
-            // ==================== CATEGORY BREAKDOWN ====================
-            item(span = { GridItemSpan(2) }) {
-                Text(
-                    text = "By Category",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = TextDark,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                )
-            }
-            
-            item(span = { GridItemSpan(2) }) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp)
+                
+                // ==================== CARD 2: PRODUCTIVITY RATE ====================
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                     ) {
-                        if (uiState.tasksByCategory.isEmpty()) {
-                            Text(
-                                text = "No tasks yet",
-                                color = TextSecondary,
-                                modifier = Modifier.padding(vertical = 16.dp)
-                            )
-                        } else {
-                            uiState.tasksByCategory.forEach { (category, count) ->
-                                CategoryRow(
-                                    category = category,
-                                    count = count,
-                                    total = uiState.totalTasks
+                        Column(
+                            modifier = Modifier.padding(24.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Completion Rate",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = NavyDeep
                                 )
-                                if (category != uiState.tasksByCategory.keys.last()) {
-                                    HorizontalDivider(
-                                        modifier = Modifier.padding(vertical = 12.dp),
-                                        color = DividerGrey
+                                
+                                Text(
+                                    text = "${(animatedProgress * 100).toInt()}%",
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = SuccessGreen
+                                )
+                            }
+                            
+                            Spacer(modifier = Modifier.height(16.dp))
+                            
+                            // Progress bar
+                            LinearProgressIndicator(
+                                progress = { animatedProgress },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(12.dp)
+                                    .clip(RoundedCornerShape(6.dp)),
+                                color = SuccessGreen,
+                                trackColor = SuccessGreen.copy(alpha = 0.2f)
+                            )
+                            
+                            Spacer(modifier = Modifier.height(16.dp))
+                            
+                            // Stats row
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceEvenly
+                            ) {
+                                StatItem(
+                                    label = "Completed",
+                                    value = "${uiState.completedTasks}",
+                                    color = SuccessGreen
+                                )
+                                
+                                Box(
+                                    modifier = Modifier
+                                        .width(1.dp)
+                                        .height(40.dp)
+                                        .background(DividerGrey)
+                                )
+                                
+                                StatItem(
+                                    label = "Pending",
+                                    value = "${uiState.pendingTasks}",
+                                    color = WarningOrange
+                                )
+                                
+                                Box(
+                                    modifier = Modifier
+                                        .width(1.dp)
+                                        .height(40.dp)
+                                        .background(DividerGrey)
+                                )
+                                
+                                StatItem(
+                                    label = "Total",
+                                    value = "${uiState.totalTasks}",
+                                    color = NavyDeep
+                                )
+                            }
+                        }
+                    }
+                }
+                
+                // ==================== CARD 3: CATEGORY BREAKDOWN ====================
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(24.dp)
+                        ) {
+                            Text(
+                                text = "Focus by Category",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = NavyDeep
+                            )
+                            
+                            Spacer(modifier = Modifier.height(16.dp))
+                            
+                            if (uiState.tasksByCategory.isEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 24.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "No tasks yet",
+                                        color = TextSecondary,
+                                        fontSize = 14.sp
+                                    )
+                                }
+                            } else {
+                                Column(
+                                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    uiState.tasksByCategory.forEach { (category, count) ->
+                                        CategoryBreakdownItem(
+                                            category = category,
+                                            count = count,
+                                            total = uiState.totalTasks
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // ==================== CARD 4: OVERDUE ALERT (if any) ====================
+                if (uiState.overdueTasks > 0) {
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(24.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = ErrorRed.copy(alpha = 0.1f)
+                            ),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(20.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .clip(CircleShape)
+                                        .background(ErrorRed.copy(alpha = 0.2f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Warning,
+                                        contentDescription = null,
+                                        tint = ErrorRed,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                                
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Overdue Tasks",
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = ErrorRed
+                                    )
+                                    Text(
+                                        text = "You have ${uiState.overdueTasks} task${if (uiState.overdueTasks > 1) "s" else ""} past deadline",
+                                        fontSize = 13.sp,
+                                        color = TextSecondary
                                     )
                                 }
                             }
                         }
                     }
+                }
+                
+                // Bottom spacing
+                item {
+                    Spacer(modifier = Modifier.height(80.dp))
                 }
             }
         }
@@ -266,83 +345,43 @@ fun DashboardScreen(
 }
 
 /**
- * Stat Card for grid display
+ * Stat item for productivity card
  */
 @Composable
-private fun StatCard(
-    icon: ImageVector,
-    title: String,
+private fun StatItem(
+    label: String,
     value: String,
-    iconColor: Color,
-    modifier: Modifier = Modifier
+    color: Color
 ) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            horizontalAlignment = Alignment.Start
-        ) {
-            // Icon with colored background
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(iconColor.copy(alpha = 0.15f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = title,
-                    tint = iconColor,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            // Value - Large
-            Text(
-                text = value,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = NavyDeep
-            )
-            
-            Spacer(modifier = Modifier.height(4.dp))
-            
-            // Label - Small grey
-            Text(
-                text = title,
-                fontSize = 13.sp,
-                color = TextSecondary,
-                fontWeight = FontWeight.Medium
-            )
-        }
+        Text(
+            text = value,
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold,
+            color = color
+        )
+        Text(
+            text = label,
+            fontSize = 12.sp,
+            color = TextSecondary,
+            fontWeight = FontWeight.Medium
+        )
     }
 }
 
 /**
- * Category row with progress bar
+ * Category breakdown item
  */
 @Composable
-private fun CategoryRow(
+private fun CategoryBreakdownItem(
     category: String,
     count: Int,
     total: Int
 ) {
     val progress = if (total > 0) count.toFloat() / total else 0f
-    val categoryColor = when (category.lowercase()) {
-        "work" -> CategoryWork
-        "personal" -> CategoryPersonal
-        "study" -> CategoryStudy
-        else -> CategoryOthers
-    }
+    val (categoryColor, categoryIcon) = getCategoryStyle(category)
     
     Column {
         Row(
@@ -351,15 +390,25 @@ private fun CategoryRow(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                // Category icon with background
                 Box(
                     modifier = Modifier
-                        .size(10.dp)
-                        .clip(CircleShape)
-                        .background(categoryColor)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(categoryColor.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = categoryIcon,
+                        contentDescription = category,
+                        tint = categoryColor,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                
                 Text(
                     text = category,
                     fontSize = 15.sp,
@@ -367,8 +416,9 @@ private fun CategoryRow(
                     color = TextDark
                 )
             }
+            
             Text(
-                text = "$count tasks",
+                text = "$count task${if (count > 1) "s" else ""}",
                 fontSize = 14.sp,
                 color = NavyDeep,
                 fontWeight = FontWeight.SemiBold
@@ -387,5 +437,18 @@ private fun CategoryRow(
             color = categoryColor,
             trackColor = categoryColor.copy(alpha = 0.2f)
         )
+    }
+}
+
+/**
+ * Get category color and icon
+ */
+private fun getCategoryStyle(categoryName: String): Pair<Color, ImageVector> {
+    return when (categoryName.lowercase()) {
+        "work" -> Pair(CategoryWork, Icons.Rounded.Work)
+        "personal" -> Pair(CategoryPersonal, Icons.Rounded.Person)
+        "study" -> Pair(CategoryStudy, Icons.Rounded.School)
+        "others" -> Pair(CategoryOthers, Icons.Rounded.MoreHoriz)
+        else -> Pair(CategoryOthers, Icons.Rounded.Task)
     }
 }

@@ -1,26 +1,26 @@
 package com.example.tubes.ui.screens
 
+import android.view.WindowManager
+import androidx.activity.ComponentActivity
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Stop
+import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -32,18 +32,18 @@ import com.example.tubes.util.SoundManager
 import com.example.tubes.viewmodel.TimerState
 import com.example.tubes.viewmodel.TimerViewModel
 
-// Cyan/Mint accent color for timer progress
-private val TimerCyan = Color(0xFF00E5FF)
-private val TimerTrack = Color(0xFFE8EDF2)
-private val CompleteGreen = Color(0xFF34C759) // Green for "Selesai" button
+// Premium Design Colors
+private val ProgressGold = Color(0xFFFFC107)
+private val SuccessGreen = Color(0xFF34C759)
 
 /**
- * TimerScreen - Deep Blue Modern Split Layout Design
+ * TimerScreen - White Lab & Navy Panel Design
  * 
- * Layout:
- * - Header (40%): NavyDeep curved background with task title
- * - Center: Overlapping circular timer
- * - Bottom: Light background with controls
+ * Premium minimalist design inspired by Apple Watch Ultra:
+ * - Clean white background
+ * - Navy floating card with 40dp rounded corners
+ * - 20dp elevation for floating effect
+ * - Elegant typography with letter spacing
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,6 +63,19 @@ fun TimerScreen(
     // Dialog state
     var showCustomDialog by remember { mutableStateOf(false) }
     
+    // ==================== KEEP SCREEN ON ====================
+    DisposableEffect(uiState.timerState) {
+        val activity = context as? ComponentActivity
+        if (uiState.timerState == TimerState.RUNNING) {
+            activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else {
+            activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+        onDispose {
+            activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
+    
     // Load task data
     LaunchedEffect(taskId) {
         timerViewModel.loadTask(taskId)
@@ -75,7 +88,7 @@ fun TimerScreen(
         }
     }
     
-    // Handle timer completion
+    // Handle timer completion - trigger vibration & notification
     LaunchedEffect(uiState.timerCompleted) {
         if (uiState.timerCompleted) {
             soundManager.stopSound()
@@ -98,291 +111,250 @@ fun TimerScreen(
         label = "progress"
     )
 
-    // ==================== MAIN LAYOUT ====================
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Background) // Light background for bottom area
-    ) {
-        // ==================== HEADER (NavyDeep - 40%) ====================
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.4f)
-                .background(
-                    color = NavyDeep,
-                    shape = RoundedCornerShape(
-                        bottomStart = 32.dp,
-                        bottomEnd = 32.dp
-                    )
-                )
-        ) {
-            // Back Button
-            IconButton(
-                onClick = onNavigateBack,
-                modifier = Modifier
-                    .padding(16.dp)
-                    .align(Alignment.TopStart)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "Back",
-                    tint = Color.White,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-            
-            // Header Content - Centered
-            Column(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .padding(horizontal = 24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // "Focusing on" label
-                Text(
-                    text = "Focusing on",
-                    fontSize = 14.sp,
-                    color = Color.White.copy(alpha = 0.7f),
-                    fontWeight = FontWeight.Normal
-                )
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                // Task Title (from ViewModel)
-                if (uiState.isLoadingTask) {
-                    Text(
-                        text = "Loading...",
-                        fontSize = 24.sp,
-                        color = Color.White.copy(alpha = 0.5f),
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center
-                    )
-                } else {
-                    Text(
-                        text = uiState.taskTitle,
-                        fontSize = 24.sp,
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center,
-                        maxLines = 2
-                    )
-                    
-                    // Category chip if available
-                    if (uiState.taskCategory.isNotBlank()) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = Color.White.copy(alpha = 0.15f)
-                        ) {
-                            Text(
-                                text = uiState.taskCategory,
-                                fontSize = 12.sp,
-                                color = Color.White.copy(alpha = 0.8f),
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-                            )
-                        }
+    // ==================== MAIN LAYOUT (WHITE BACKGROUND) ====================
+    Scaffold(
+        containerColor = Color.White,
+        topBar = {
+            // Back Button - Navy on white
+            TopAppBar(
+                title = { },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.Rounded.ArrowBack,
+                            contentDescription = "Back",
+                            tint = NavyDeep,
+                            modifier = Modifier.size(28.dp)
+                        )
                     }
-                }
-            }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent
+                )
+            )
         }
+    ) { paddingValues ->
         
-        // ==================== TIMER CIRCLE (Overlap Center) ====================
+        // Centered Content
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.Center)
-                .offset(y = 20.dp), // Slight offset for overlap effect
+            modifier = modifier
+                .fillMaxSize()
+                .padding(paddingValues),
             contentAlignment = Alignment.Center
         ) {
-            // Timer Card with shadow
+            // ==================== NAVY FLOATING PANEL ====================
             Card(
                 modifier = Modifier
-                    .size(240.dp)
-                    .shadow(
-                        elevation = 24.dp,
-                        shape = CircleShape,
-                        ambientColor = NavyDeep.copy(alpha = 0.3f)
-                    ),
-                shape = CircleShape,
-                colors = CardDefaults.cardColors(containerColor = SurfaceWhite)
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp),
+                shape = RoundedCornerShape(40.dp),
+                colors = CardDefaults.cardColors(containerColor = NavyDeep),
+                elevation = CardDefaults.cardElevation(defaultElevation = 20.dp)
             ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 40.dp, horizontal = 32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Track (background circle)
-                    CircularProgressIndicator(
-                        progress = { 1f },
-                        modifier = Modifier.size(220.dp),
-                        color = TimerTrack,
-                        strokeWidth = 12.dp
-                    )
-                    
-                    // Progress (foreground circle with Cyan color)
-                    CircularProgressIndicator(
-                        progress = { progress },
-                        modifier = Modifier.size(220.dp),
-                        color = when (uiState.timerState) {
-                            TimerState.RUNNING -> TimerCyan
-                            TimerState.PAUSED -> AccentBlue
-                            TimerState.IDLE -> SuccessGreen
-                        },
-                        strokeWidth = 12.dp,
-                        trackColor = Color.Transparent,
-                        strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
-                    )
-                    
-                    // Timer Text
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
+                    // ==================== HEADER ====================
+                    // Task Title
+                    if (uiState.isLoadingTask) {
                         Text(
-                            text = formatTime(uiState.timeLeftInSeconds),
-                            fontSize = 56.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = NavyDeep,
-                            letterSpacing = 2.sp
+                            text = "Loading...",
+                            fontSize = 18.sp,
+                            color = Color.White.copy(alpha = 0.5f),
+                            fontWeight = FontWeight.Medium
+                        )
+                    } else {
+                        Text(
+                            text = uiState.taskTitle,
+                            fontSize = 18.sp,
+                            color = Color.White,
+                            fontWeight = FontWeight.SemiBold,
+                            textAlign = TextAlign.Center,
+                            maxLines = 2
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(32.dp))
+                    
+                    // ==================== CIRCULAR TIMER ====================
+                    Box(
+                        modifier = Modifier.size(250.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        // Track (background circle)
+                        CircularProgressIndicator(
+                            progress = { 1f },
+                            modifier = Modifier.size(250.dp),
+                            color = Color.White.copy(alpha = 0.1f),
+                            strokeWidth = 10.dp,
+                            trackColor = Color.Transparent
                         )
                         
-                        // State label
-                        Text(
-                            text = when (uiState.timerState) {
-                                TimerState.RUNNING -> "Running"
-                                TimerState.PAUSED -> "Paused"
-                                TimerState.IDLE -> "Ready"
+                        // Progress (foreground circle)
+                        CircularProgressIndicator(
+                            progress = { progress },
+                            modifier = Modifier.size(250.dp),
+                            color = when (uiState.timerState) {
+                                TimerState.RUNNING -> ProgressGold
+                                TimerState.PAUSED -> AccentBlue
+                                TimerState.IDLE -> if (uiState.isTimerFinished) SuccessGreen else AccentBlue
                             },
-                            fontSize = 12.sp,
-                            color = TextSecondary,
-                            fontWeight = FontWeight.Medium
+                            strokeWidth = 10.dp,
+                            trackColor = Color.Transparent,
+                            strokeCap = StrokeCap.Round
                         )
-                    }
-                }
-            }
-        }
-        
-        // ==================== BOTTOM CONTROLS ====================
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 48.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // Set Duration Chip (only when IDLE)
-            if (uiState.timerState == TimerState.IDLE) {
-                AssistChip(
-                    onClick = { showCustomDialog = true },
-                    label = { 
-                        Text(
-                            "Set Duration",
-                            fontWeight = FontWeight.Medium
-                        ) 
-                    },
-                    leadingIcon = {
-                        Icon(
-                            Icons.Default.Timer,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    },
-                    colors = AssistChipDefaults.assistChipColors(
-                        containerColor = SurfaceWhite,
-                        labelColor = NavyDeep,
-                        leadingIconContentColor = NavyDeep
-                    ),
-                    border = AssistChipDefaults.assistChipBorder(
-                        enabled = true,
-                        borderColor = DividerGrey
-                    )
-                )
-                
-                Spacer(modifier = Modifier.height(24.dp))
-            }
-            
-            // Control Buttons Row
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(24.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Reset Button (small) - only show when timer running/paused and NOT finished
-                if (uiState.timerState != TimerState.IDLE && !uiState.isTimerFinished) {
-                    FloatingActionButton(
-                        onClick = { timerViewModel.resetTimer() },
-                        modifier = Modifier.size(48.dp),
-                        containerColor = SurfaceWhite,
-                        contentColor = ErrorRed,
-                        elevation = FloatingActionButtonDefaults.elevation(
-                            defaultElevation = 4.dp
-                        )
-                    ) {
-                        Icon(
-                            Icons.Default.Refresh,
-                            contentDescription = "Reset",
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
-                
-                // ==================== MAIN FAB ====================
-                // IF timer finished: Show "Selesai" (Complete) button
-                // ELSE: Show Play/Pause button
-                if (uiState.isTimerFinished) {
-                    // ===== SELESAI BUTTON (Green) =====
-                    FloatingActionButton(
-                        onClick = {
-                            timerViewModel.completeTask {
-                                onNavigateBack() // Navigate back after completing
-                            }
-                        },
-                        modifier = Modifier.size(72.dp),
-                        containerColor = CompleteGreen,
-                        contentColor = Color.White,
-                        shape = CircleShape,
-                        elevation = FloatingActionButtonDefaults.elevation(
-                            defaultElevation = 8.dp
-                        )
-                    ) {
-                        if (uiState.isCompletingTask) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(32.dp),
+                        
+                        // Time Display
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            // Big Time Text
+                            Text(
+                                text = formatTime(uiState.timeLeftInSeconds),
+                                fontSize = 64.sp,
+                                fontWeight = FontWeight.Bold,
                                 color = Color.White,
-                                strokeWidth = 3.dp
+                                letterSpacing = 2.sp
                             )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = "Complete Task",
-                                modifier = Modifier.size(36.dp)
+                            
+                            // State indicator
+                            Text(
+                                text = when {
+                                    uiState.isTimerFinished -> "DONE"
+                                    uiState.timerState == TimerState.RUNNING -> "RUNNING"
+                                    uiState.timerState == TimerState.PAUSED -> "PAUSED"
+                                    else -> "READY"
+                                },
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = when {
+                                    uiState.isTimerFinished -> SuccessGreen
+                                    uiState.timerState == TimerState.RUNNING -> ProgressGold
+                                    else -> Color.White.copy(alpha = 0.6f)
+                                },
+                                letterSpacing = 2.sp
                             )
                         }
                     }
-                } else {
-                    // ===== PLAY/PAUSE BUTTON (NavyDeep) =====
-                    FloatingActionButton(
-                        onClick = { timerViewModel.toggleTimer() },
-                        modifier = Modifier.size(72.dp),
-                        containerColor = NavyDeep,
-                        contentColor = Color.White,
-                        shape = CircleShape,
-                        elevation = FloatingActionButtonDefaults.elevation(
-                            defaultElevation = 8.dp
-                        )
-                    ) {
-                        Icon(
-                            imageVector = if (uiState.timerState == TimerState.RUNNING) 
-                                Icons.Default.Pause 
-                            else 
-                                Icons.Default.PlayArrow,
-                            contentDescription = if (uiState.timerState == TimerState.RUNNING) "Pause" else "Start",
-                            modifier = Modifier.size(36.dp)
-                        )
+                    
+                    Spacer(modifier = Modifier.height(32.dp))
+                    
+                    // ==================== SET DURATION (only when IDLE) ====================
+                    if (uiState.timerState == TimerState.IDLE && !uiState.isTimerFinished) {
+                        TextButton(
+                            onClick = { showCustomDialog = true },
+                            colors = ButtonDefaults.textButtonColors(
+                                contentColor = Color.White.copy(alpha = 0.7f)
+                            )
+                        ) {
+                            Icon(
+                                Icons.Rounded.Timer,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                "Set Duration",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                letterSpacing = 1.sp
+                            )
+                        }
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
                     }
-                }
-                
-                // Spacer for symmetry when reset is shown
-                if (uiState.timerState != TimerState.IDLE && !uiState.isTimerFinished) {
-                    Spacer(modifier = Modifier.size(48.dp))
+                    
+                    // ==================== CONTROL BUTTONS ====================
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(24.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Stop/Reset Button (only when running/paused and NOT finished)
+                        if (uiState.timerState != TimerState.IDLE && !uiState.isTimerFinished) {
+                            OutlinedIconButton(
+                                onClick = { timerViewModel.resetTimer() },
+                                modifier = Modifier.size(56.dp),
+                                shape = CircleShape,
+                                colors = IconButtonDefaults.outlinedIconButtonColors(
+                                    contentColor = Color.White
+                                ),
+                                border = ButtonDefaults.outlinedButtonBorder(enabled = true).copy(
+                                    brush = SolidColor(Color.White.copy(alpha = 0.3f))
+                                )
+                            ) {
+                                Icon(
+                                    Icons.Rounded.Stop,
+                                    contentDescription = "Stop",
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
+                        
+                        // ==================== MAIN BUTTON ====================
+                        if (uiState.isTimerFinished) {
+                            // ===== FINISH BUTTON (Green) =====
+                            Button(
+                                onClick = {
+                                    // Real-Time Tracking: Complete task with focusTimeSpent
+                                    timerViewModel.completeTask {
+                                        onNavigateBack()
+                                    }
+                                },
+                                modifier = Modifier.size(80.dp),
+                                shape = CircleShape,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = SuccessGreen,
+                                    contentColor = Color.White
+                                ),
+                                contentPadding = PaddingValues(0.dp),
+                                elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp)
+                            ) {
+                                if (uiState.isCompletingTask) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(28.dp),
+                                        color = Color.White,
+                                        strokeWidth = 3.dp
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Check,
+                                        contentDescription = "Complete Task",
+                                        modifier = Modifier.size(36.dp)
+                                    )
+                                }
+                            }
+                        } else {
+                            // ===== PLAY/PAUSE BUTTON (White with Navy icon) =====
+                            Button(
+                                onClick = { timerViewModel.toggleTimer() },
+                                modifier = Modifier.size(80.dp),
+                                shape = CircleShape,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color.White,
+                                    contentColor = NavyDeep
+                                ),
+                                contentPadding = PaddingValues(0.dp),
+                                elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (uiState.timerState == TimerState.RUNNING) 
+                                        Icons.Rounded.Pause 
+                                    else 
+                                        Icons.Rounded.PlayArrow,
+                                    contentDescription = if (uiState.timerState == TimerState.RUNNING) "Pause" else "Start",
+                                    modifier = Modifier.size(36.dp)
+                                )
+                            }
+                        }
+                        
+                        // Spacer for symmetry
+                        if (uiState.timerState != TimerState.IDLE && !uiState.isTimerFinished) {
+                            Spacer(modifier = Modifier.size(56.dp))
+                        }
+                    }
                 }
             }
         }

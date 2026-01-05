@@ -10,7 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -26,27 +26,11 @@ import com.example.tubes.model.Task
 import com.example.tubes.ui.theme.*
 import com.example.tubes.util.DateUtils
 
-private const val TAG = "TaskItem"
-
-// ==================== WARNA VISUAL ====================
-private val PinnedGold = Color(0xFFFFC107)
-private val OverdueRed = Color(0xFFFF6B35)
-private val CompletedGreen = Color(0xFF34C759)
-private val TextWhite = Color.White
-private val TextWhiteDim = Color.White.copy(alpha = 0.6f)
-private val UncheckedGray = Color.Gray
-
 /**
- * Navy Blue Task Card - STATELESS Component
+ * 100% STATELESS Task Card
  * 
- * PENTING: Komponen ini TIDAK memiliki internal state untuk checkbox.
- * Semua visual ditentukan langsung dari parameter `task`.
- * 
- * Features:
- * - NavyDeep background dengan teks putih
- * - Overdue: Deadline teks merah/orange
- * - Pinned: Icon pin emas
- * - Checkbox: Hijau (selesai) / Abu-abu (belum)
+ * TIDAK ADA: var, remember, mutableStateOf
+ * Logika isDone sinkron dengan Dashboard (isCompleted OR progress >= 0.99)
  */
 @Composable
 fun TaskItem(
@@ -57,69 +41,24 @@ fun TaskItem(
     onDeleteClick: (Task) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // ==================== KEY WRAPPER untuk mencegah state confusion ====================
-    // Ini memastikan bahwa remember state di bawah terikat ke task.id yang spesifik
-    key(task.id) {
-        TaskItemContent(
-            task = task,
-            onClick = onClick,
-            onCheckClick = onCheckClick,
-            onPinClick = onPinClick,
-            onDeleteClick = onDeleteClick,
-            modifier = modifier
-        )
-    }
-}
-
-@Composable
-private fun TaskItemContent(
-    task: Task,
-    onClick: (Task) -> Unit,
-    onCheckClick: (Task, Boolean) -> Unit,
-    onPinClick: (Task) -> Unit,
-    onDeleteClick: (Task) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    // State untuk menu dropdown - HANYA untuk menu, BUKAN untuk checkbox
-    var showMenu by remember { mutableStateOf(false) }
+    // ==================== LOGIKA FALLBACK SINKRON DENGAN DASHBOARD ====================
+    // Checklist menyala HIJAU jika: isCompleted == true ATAU progress >= 0.99
+    val isDone = task.isCompleted || task.progress >= 0.99f
     
-    // Get category icon and color
-    val (categoryIcon, categoryColor) = getCategoryIconAndColor(task.category)
+    // DEBUG: Verifikasi data masuk
+    Log.d("TaskItem", "RENDER: ${task.title} | isCompleted=${task.isCompleted} | progress=${task.progress} | isDone=$isDone")
     
-    // ==================== LOGIKA VISUAL LANGSUNG DARI DATA ====================
-    // KRITIS: Gunakan task.isCompleted langsung, BUKAN variable internal
-    val statusIcon: ImageVector = if (task.isCompleted) {
-        Icons.Rounded.CheckCircle
-    } else {
-        Icons.Rounded.RadioButtonUnchecked
-    }
-    
-    val statusColor: Color = if (task.isCompleted) {
-        CompletedGreen
-    } else {
-        UncheckedGray
-    }
-    
-    // Check if overdue (deadline passed AND not completed)
-    val isOverdue: Boolean = !task.isCompleted && DateUtils.isOverdue(task.dueDate)
-    
-    // Warna deadline
-    val deadlineColor: Color = if (isOverdue) OverdueRed else TextWhiteDim
-    
-    // Text decoration untuk judul
-    val titleDecoration = if (task.isCompleted) TextDecoration.LineThrough else TextDecoration.None
-    
-    // DEBUG LOG - verifikasi data yang masuk
-    Log.d(TAG, "TaskItem: ${task.title} | id=${task.id} | isCompleted=${task.isCompleted} | icon=${if(task.isCompleted) "CHECK" else "UNCHECKED"}")
+    // Visual dari isDone (bukan task.isCompleted langsung)
+    val statusIcon = if (isDone) Icons.Rounded.CheckCircle else Icons.Rounded.RadioButtonUnchecked
+    val statusColor = if (isDone) Color(0xFF34C759) else Color.Gray
+    val titleDecoration = if (isDone) TextDecoration.LineThrough else TextDecoration.None
     
     Card(
         modifier = modifier
             .fillMaxWidth()
             .clickable { onClick(task) },
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = NavyDeep
-        ),
+        colors = CardDefaults.cardColors(containerColor = NavyDeep),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Row(
@@ -134,13 +73,13 @@ private fun TaskItemContent(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(CircleShape)
-                    .background(TextWhite.copy(alpha = 0.1f)),
+                    .background(Color.White.copy(alpha = 0.1f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = categoryIcon,
+                    imageVector = getCategoryIcon(task.category),
                     contentDescription = task.category,
-                    tint = categoryColor,
+                    tint = getCategoryColor(task.category),
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -150,12 +89,12 @@ private fun TaskItemContent(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                // Task Title - dengan strikethrough jika selesai
+                // Title - gunakan isDone
                 Text(
                     text = task.title,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextWhite,
+                    color = Color.White,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     textDecoration = titleDecoration
@@ -166,7 +105,9 @@ private fun TaskItemContent(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    // Clock icon
+                    val isOverdue = !isDone && DateUtils.isOverdue(task.dueDate)
+                    val deadlineColor = if (isOverdue) Color(0xFFFF6B35) else Color.White.copy(alpha = 0.6f)
+                    
                     Icon(
                         imageVector = Icons.Rounded.Schedule,
                         contentDescription = null,
@@ -174,145 +115,93 @@ private fun TaskItemContent(
                         modifier = Modifier.size(14.dp)
                     )
                     
-                    // Deadline text
-                    if (task.dueDate != null) {
+                    Text(
+                        text = if (task.dueDate != null) DateUtils.formatDate(task.dueDate) else "No deadline",
+                        fontSize = 12.sp,
+                        color = deadlineColor
+                    )
+                    
+                    if (isOverdue) {
                         Text(
-                            text = DateUtils.formatDate(task.dueDate),
-                            fontSize = 12.sp,
-                            color = deadlineColor
-                        )
-                        
-                        // Overdue label
-                        if (isOverdue) {
-                            Text(
-                                text = "• Overdue",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = OverdueRed
-                            )
-                        }
-                    } else {
-                        Text(
-                            text = "No deadline",
-                            fontSize = 12.sp,
-                            color = TextWhiteDim.copy(alpha = 0.5f)
+                            text = "• Overdue",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFFFF6B35)
                         )
                     }
                 }
                 
-                // Category label
+                // Category
                 Text(
                     text = task.category,
                     fontSize = 11.sp,
-                    color = categoryColor
+                    color = getCategoryColor(task.category)
                 )
             }
             
-            // ==================== KANAN: Pin + Status Checkbox ====================
+            // ==================== KANAN: Pin + Checkbox ====================
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                // Pin Icon (hanya muncul jika pinned)
+                // Pin
                 if (task.isPinned) {
                     Icon(
                         imageVector = Icons.Rounded.PushPin,
                         contentDescription = "Pinned",
-                        tint = PinnedGold,
-                        modifier = Modifier
-                            .size(20.dp)
-                            .rotate(-45f)
+                        tint = Color(0xFFFFC107),
+                        modifier = Modifier.size(20.dp).rotate(-45f)
                     )
                 }
                 
-                // ==================== STATUS CHECKBOX ====================
-                // KRITIS: Icon dan warna langsung dari task.isCompleted
+                // ==================== CHECKBOX ====================
+                // Kirim kebalikan dari isDone (bukan task.isCompleted)
                 IconButton(
-                    onClick = { 
-                        // Toggle ke status kebalikan
-                        val newStatus = !task.isCompleted
-                        Log.d(TAG, "Checkbox clicked: ${task.title} -> newStatus=$newStatus")
-                        onCheckClick(task, newStatus)
-                    },
+                    onClick = { onCheckClick(task, !isDone) },
                     modifier = Modifier.size(40.dp)
                 ) {
                     Icon(
-                        imageVector = statusIcon,  // Dari logika di atas
-                        contentDescription = if (task.isCompleted) "Completed" else "Mark Complete",
-                        tint = statusColor,  // Dari logika di atas
+                        imageVector = statusIcon,
+                        contentDescription = if (isDone) "Completed" else "Mark Complete",
+                        tint = statusColor,
                         modifier = Modifier.size(28.dp)
                     )
                 }
                 
-                // More Options Menu
-                Box {
-                    IconButton(
-                        onClick = { showMenu = true },
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = "More options",
-                            tint = TextWhiteDim,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false }
-                    ) {
-                        // Pin/Unpin
-                        DropdownMenuItem(
-                            text = { 
-                                Text(
-                                    if (task.isPinned) "Unpin" else "Pin to Top",
-                                    color = TextDark
-                                ) 
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    Icons.Rounded.PushPin,
-                                    null,
-                                    tint = PinnedGold,
-                                    modifier = Modifier.rotate(if (task.isPinned) 0f else -45f)
-                                )
-                            },
-                            onClick = {
-                                onPinClick(task)
-                                showMenu = false
-                            }
-                        )
-                        
-                        HorizontalDivider()
-                        
-                        // Delete
-                        DropdownMenuItem(
-                            text = { Text("Delete", color = Color(0xFFE53935)) },
-                            leadingIcon = {
-                                Icon(Icons.Rounded.Delete, null, tint = Color(0xFFE53935))
-                            },
-                            onClick = {
-                                onDeleteClick(task)
-                                showMenu = false
-                            }
-                        )
-                    }
+                // Delete button
+                IconButton(
+                    onClick = { onDeleteClick(task) },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Delete,
+                        contentDescription = "Delete",
+                        tint = Color.White.copy(alpha = 0.6f),
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
         }
     }
 }
 
-/**
- * Get category icon and color
- */
-private fun getCategoryIconAndColor(category: String): Pair<ImageVector, Color> {
+// Helper functions
+private fun getCategoryIcon(category: String): ImageVector {
     return when (category.lowercase()) {
-        "work" -> Icons.Default.Work to CategoryWork
-        "personal" -> Icons.Default.Person to CategoryPersonal
-        "study" -> Icons.Default.School to CategoryStudy
-        "others" -> Icons.Default.MoreHoriz to CategoryOthers
-        else -> Icons.Default.Task to CategoryOthers
+        "work" -> Icons.Default.Work
+        "personal" -> Icons.Default.Person
+        "study" -> Icons.Default.School
+        "others" -> Icons.Default.MoreHoriz
+        else -> Icons.Default.Task
+    }
+}
+
+private fun getCategoryColor(category: String): Color {
+    return when (category.lowercase()) {
+        "work" -> CategoryWork
+        "personal" -> CategoryPersonal
+        "study" -> CategoryStudy
+        "others" -> CategoryOthers
+        else -> CategoryOthers
     }
 }

@@ -6,11 +6,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.rounded.DeleteForever
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Restore
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -39,6 +40,7 @@ private val SafeGreen = Color(0xFF34C759)
  * - BackgroundLight body
  * - White task cards with restore/delete actions
  * - Beautiful empty state
+ * - Pull-to-Refresh support
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,6 +49,7 @@ fun RecycleBinScreen(
     viewModel: TaskViewModel = viewModel()
 ) {
     val deletedTasksState by viewModel.deletedTasksState.collectAsState()
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
 
     Scaffold(
         topBar = {
@@ -61,7 +64,7 @@ fun RecycleBinScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateUp) {
                         Icon(
-                            Icons.Default.ArrowBack, 
+                            Icons.AutoMirrored.Filled.ArrowBack, 
                             contentDescription = "Back",
                             tint = Color.White
                         )
@@ -74,93 +77,94 @@ fun RecycleBinScreen(
         },
         containerColor = Background
     ) { paddingValues ->
-        when (val state = deletedTasksState) {
-            is TaskUiState.Loading -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(color = NavyDeep)
+        // ==================== PULL TO REFRESH ====================
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = { viewModel.refreshData() },
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            when (val state = deletedTasksState) {
+                is TaskUiState.Loading -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = NavyDeep)
+                    }
                 }
-            }
-            
-            is TaskUiState.Success -> {
-                val deletedTasks = state.tasks
                 
-                if (deletedTasks.isEmpty()) {
-                    // ==================== EMPTY STATE ====================
-                    EmptyRecycleBinState(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(paddingValues)
-                    )
-                } else {
-                    // ==================== TASK LIST ====================
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(paddingValues),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        // Header info
-                        item {
-                            Text(
-                                text = "${deletedTasks.size} deleted task${if (deletedTasks.size > 1) "s" else ""}",
-                                fontSize = 14.sp,
-                                color = TextSecondary,
-                                modifier = Modifier.padding(bottom = 8.dp)
-                            )
-                        }
-                        
-                        items(
-                            items = deletedTasks,
-                            key = { it.id }
-                        ) { task ->
-                            TrashedTaskCard(
-                                task = task,
-                                onRestoreClick = { viewModel.restoreTask(task) },
-                                onDeleteForeverClick = { viewModel.deleteTaskPermanently(task.id) }
-                            )
-                        }
-                        
-                        // Bottom spacing
-                        item {
-                            Spacer(modifier = Modifier.height(16.dp))
-                        }
-                    }
-                }
-            }
-            
-            is TaskUiState.Error -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Text(
-                            text = state.message,
-                            color = DangerRed,
-                            fontSize = 14.sp
+                is TaskUiState.Success -> {
+                    val deletedTasks = state.tasks
+                    
+                    if (deletedTasks.isEmpty()) {
+                        // ==================== EMPTY STATE ====================
+                        EmptyRecycleBinState(
+                            modifier = Modifier.fillMaxSize()
                         )
-                        Button(
-                            onClick = { viewModel.refresh() },
-                            colors = ButtonDefaults.buttonColors(containerColor = NavyDeep),
-                            shape = RoundedCornerShape(12.dp)
+                    } else {
+                        // ==================== TASK LIST ====================
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Text("Retry")
+                            // Header info
+                            item {
+                                Text(
+                                    text = "${deletedTasks.size} deleted task${if (deletedTasks.size > 1) "s" else ""}",
+                                    fontSize = 14.sp,
+                                    color = TextSecondary,
+                                    modifier = Modifier.padding(bottom = 8.dp)
+                                )
+                            }
+                            
+                            items(
+                                items = deletedTasks,
+                                key = { it.id }
+                            ) { task ->
+                                TrashedTaskCard(
+                                    task = task,
+                                    onRestoreClick = { viewModel.restoreTask(task) },
+                                    onDeleteForeverClick = { viewModel.deleteTaskPermanently(task.id) }
+                                )
+                            }
+                            
+                            // Bottom spacing
+                            item {
+                                Spacer(modifier = Modifier.height(16.dp))
+                            }
+                        }
+                    }
+                }
+                
+                is TaskUiState.Error -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Text(
+                                text = state.message,
+                                color = DangerRed,
+                                fontSize = 14.sp
+                            )
+                            Button(
+                                onClick = { viewModel.refreshData() },
+                                colors = ButtonDefaults.buttonColors(containerColor = NavyDeep),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text("Retry")
+                            }
                         }
                     }
                 }
             }
-        }
+        } // End PullToRefreshBox
     }
 }
 

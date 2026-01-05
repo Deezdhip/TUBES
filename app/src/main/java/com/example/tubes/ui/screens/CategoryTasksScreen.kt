@@ -7,9 +7,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,6 +39,9 @@ private val CompletedGreen = Color(0xFF34C759)
 /**
  * CategoryTasksScreen - Deep Blue Modern Theme
  * Displays tasks filtered by category using SimpleTaskRow
+ * 
+ * Features:
+ * - Pull-to-Refresh support
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,6 +52,7 @@ fun CategoryTasksScreen(
     viewModel: TaskViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
     
     Scaffold(
         topBar = {
@@ -63,7 +68,7 @@ fun CategoryTasksScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
                             tint = Color.White
                         )
@@ -76,82 +81,84 @@ fun CategoryTasksScreen(
         },
         containerColor = Background
     ) { paddingValues ->
-        
-        when (uiState) {
-            is TaskUiState.Loading -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(color = NavyDeep)
-                }
-            }
-            
-            is TaskUiState.Success -> {
-                val allTasks = (uiState as TaskUiState.Success).tasks
-                
-                // Filter tasks by category (case-insensitive comparison)
-                val categoryTasks = allTasks.filter { task ->
-                    task.category.equals(categoryName, ignoreCase = true)
-                }
-                
-                if (categoryTasks.isEmpty()) {
-                    // ==================== EMPTY STATE ====================
-                    EmptyCategoryState(categoryName = categoryName)
-                } else {
-                    // ==================== TASK LIST ====================
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(paddingValues),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+        // ==================== PULL TO REFRESH ====================
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = { viewModel.refreshData() },
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            when (uiState) {
+                is TaskUiState.Loading -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
                     ) {
-                        // Task count header
-                        item {
-                            Text(
-                                text = "${categoryTasks.size} task${if (categoryTasks.size > 1) "s" else ""} found",
-                                color = TextSecondary,
-                                fontSize = 14.sp,
-                                modifier = Modifier.padding(bottom = 4.dp)
-                            )
-                        }
-                        
-                        items(
-                            items = categoryTasks,
-                            key = { it.id }
-                        ) { task ->
-                            SimpleTaskRow(
-                                task = task,
-                                categoryName = categoryName,
-                                onClick = { onNavigateToTimer(task.id) }
-                            )
-                        }
-                        
-                        // Bottom spacing
-                        item {
-                            Spacer(modifier = Modifier.height(24.dp))
+                        CircularProgressIndicator(color = NavyDeep)
+                    }
+                }
+                
+                is TaskUiState.Success -> {
+                    val allTasks = (uiState as TaskUiState.Success).tasks
+                    
+                    // Filter tasks by category (case-insensitive comparison)
+                    val categoryTasks = allTasks.filter { task ->
+                        task.category.equals(categoryName, ignoreCase = true)
+                    }
+                    
+                    if (categoryTasks.isEmpty()) {
+                        // ==================== EMPTY STATE ====================
+                        EmptyCategoryState(categoryName = categoryName)
+                    } else {
+                        // ==================== TASK LIST ====================
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            // Task count header
+                            item {
+                                Text(
+                                    text = "${categoryTasks.size} task${if (categoryTasks.size > 1) "s" else ""} found",
+                                    color = TextSecondary,
+                                    fontSize = 14.sp,
+                                    modifier = Modifier.padding(bottom = 4.dp)
+                                )
+                            }
+                            
+                            items(
+                                items = categoryTasks,
+                                key = { it.id }
+                            ) { task ->
+                                SimpleTaskRow(
+                                    task = task,
+                                    categoryName = categoryName,
+                                    onClick = { onNavigateToTimer(task.id) }
+                                )
+                            }
+                            
+                            // Bottom spacing
+                            item {
+                                Spacer(modifier = Modifier.height(24.dp))
+                            }
                         }
                     }
                 }
-            }
-            
-            is TaskUiState.Error -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Failed to load tasks",
-                        color = TextSecondary
-                    )
+                
+                is TaskUiState.Error -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Failed to load tasks",
+                            color = TextSecondary
+                        )
+                    }
                 }
             }
-        }
+        } // End PullToRefreshBox
     }
 }
 

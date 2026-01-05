@@ -49,6 +49,7 @@ data class TimerUiState(
  * - Proper cleanup dengan onCleared()
  * - Timer completion event untuk vibrate/notifikasi
  * - Load task by ID for task-specific timer
+ * - REAL-TIME TRACKING: Hitung durasi asli yang dihabiskan
  */
 class TimerViewModel : ViewModel() {
     
@@ -237,6 +238,8 @@ class TimerViewModel : ViewModel() {
      * Complete the current task - Update progress to 100% and mark as completed.
      * Called when user clicks "Selesai" button after timer finishes.
      * 
+     * REAL-TIME TRACKING: Menghitung durasi asli yang dihabiskan dan menyimpannya.
+     * 
      * @param onSuccess Callback yang dipanggil setelah task berhasil di-complete
      */
     fun completeTask(onSuccess: () -> Unit = {}) {
@@ -256,13 +259,28 @@ class TimerViewModel : ViewModel() {
                 val currentTask = repository.getTaskById(taskId)
                 
                 if (currentTask != null) {
-                    // Update task to completed with 100% progress
-                    val completedTask = currentTask.copy(
+                    // ==================== REAL-TIME TRACKING ====================
+                    // Hitung durasi terpakai (Total - Sisa)
+                    val timeSpent = _uiState.value.totalTimeInSeconds - _uiState.value.timeLeftInSeconds
+                    
+                    Log.d(TAG, "Time calculation:")
+                    Log.d(TAG, "  Total: ${_uiState.value.totalTimeInSeconds}s")
+                    Log.d(TAG, "  Left: ${_uiState.value.timeLeftInSeconds}s")
+                    Log.d(TAG, "  Spent this session: ${timeSpent}s")
+                    Log.d(TAG, "  Previous focusTimeSpent: ${currentTask.focusTimeSpent}s")
+                    
+                    // Update task dengan akumulasi waktu fokus
+                    val updatedTask = currentTask.copy(
+                        isCompleted = true,
                         progress = 1.0f,
-                        isCompleted = true
+                        // Akumulasi waktu jika dikerjakan beberapa sesi
+                        focusTimeSpent = currentTask.focusTimeSpent + timeSpent
                     )
-                    repository.updateTask(completedTask)
-                    Log.d(TAG, "Task '${currentTask.title}' marked as completed!")
+                    
+                    Log.d(TAG, "  New focusTimeSpent: ${updatedTask.focusTimeSpent}s")
+                    
+                    repository.updateTask(updatedTask)
+                    Log.d(TAG, "Task '${currentTask.title}' marked as completed with ${updatedTask.focusTimeSpent}s focus time!")
                 } else {
                     Log.w(TAG, "Task not found for completion: $taskId")
                 }
