@@ -1,123 +1,102 @@
 package com.example.tubes.ui.screens
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.TaskAlt
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.tubes.ui.theme.NavyDeep
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
-// Deep Blue Background
-private val SplashBackground = Color(0xFF0D1B3E)
+// ==================== COLORS ====================
+private val NavyDeep = Color(0xFF0D1B3E)
+private val AccentBlue = Color(0xFF3B82F6)
 
 /**
- * SplashScreen - Deep Blue Modern Theme
+ * SplashScreen - Clean Typographic Focus
  * 
- * Features:
- * - NavyDeep solid background
- * - TaskAlt icon + App name with fade-in & scale-up animation
- * - Auto navigation after 2.5 seconds
+ * Minimalist design:
+ * - Solid navy background
+ * - Blue icon + white bold text
+ * - Simple scale+fade entrance
  */
 @Composable
 fun SplashScreen(
     onNavigateToNext: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Animation states
+    // ==================== ENTRANCE ANIMATION ====================
+    val scale = remember { Animatable(0.5f) }
     val alpha = remember { Animatable(0f) }
-    val scale = remember { Animatable(0.8f) }
-
+    
     LaunchedEffect(Unit) {
-        // Parallel animations: fade in + scale up
-        launch {
-            alpha.animateTo(
-                targetValue = 1f,
-                animationSpec = tween(
-                    durationMillis = 1000,
-                    easing = FastOutSlowInEasing
-                )
+        // Animate scale: 0.5 -> 1.0
+        scale.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(
+                durationMillis = 500,
+                easing = FastOutSlowInEasing
             )
-        }
-        launch {
-            scale.animateTo(
-                targetValue = 1f,
-                animationSpec = tween(
-                    durationMillis = 1000,
-                    easing = FastOutSlowInEasing
-                )
+        )
+    }
+    
+    LaunchedEffect(Unit) {
+        // Animate alpha: 0 -> 1
+        alpha.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(
+                durationMillis = 500,
+                easing = FastOutSlowInEasing
             )
-        }
+        )
         
-        // Total splash duration: 2.5 seconds
-        delay(2500)
+        // Wait after animation
+        delay(1500)
         
-        // Navigate to next screen
+        // Navigate
         onNavigateToNext()
     }
-
-    // ==================== MAIN LAYOUT ====================
+    
+    // ==================== LAYOUT ====================
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(color = SplashBackground),
+            .background(NavyDeep),
         contentAlignment = Alignment.Center
     ) {
-        // Content Column with animations
         Column(
-            modifier = Modifier
-                .graphicsLayer(
-                    scaleX = scale.value,
-                    scaleY = scale.value,
-                    alpha = alpha.value
-                ),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            modifier = Modifier.graphicsLayer(
+                scaleX = scale.value,
+                scaleY = scale.value,
+                alpha = alpha.value
+            ),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Logo Icon
+            // Icon
             Icon(
                 imageVector = Icons.Rounded.TaskAlt,
-                contentDescription = "FocusTask Logo",
-                tint = Color.White,
-                modifier = Modifier.size(120.dp)
+                contentDescription = "Logo",
+                tint = AccentBlue,
+                modifier = Modifier.size(80.dp)
             )
             
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
             
             // App Name
             Text(
                 text = "FocusTask",
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-                letterSpacing = 1.sp
-            )
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            // Tagline (optional)
-            Text(
-                text = "Stay Focused, Get Things Done",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Normal,
-                color = Color.White.copy(alpha = 0.7f),
-                letterSpacing = 0.5.sp
+                fontSize = 40.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = Color.White
             )
         }
     }
